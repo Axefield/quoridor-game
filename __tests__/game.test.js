@@ -1,7 +1,7 @@
 const Game = require("../quoridor.js");
 
 describe("Game movement", () => {
-	/*
+    /*
 		Unit tests for movements and move validations
 	*/
     let game;
@@ -16,41 +16,43 @@ describe("Game movement", () => {
         const result = game.movePawn(destination);
         expect(result.success).toBe(true);
         expect(game.board[origin[0]][origin[1]].occupiedBy).toBe(null);
-        expect(game.board[destination[0]][destination[1]].occupiedBy).toBe("white");
+        expect(game.board[destination[0]][destination[1]].occupiedBy).toBe(
+            "white"
+        );
         expect(game.whitePos).toEqual(destination);
         expect(game.turn).toBe("black");
     });
 
-	test('Should not allow pawn to move when obstacle is present', () => {
-		game.board[1][8].occupiedBy = 'wall'; // wall above white
-		game.board[0][7].occupiedBy = 'wall'; // wall to the left of white
-		game.board[0][9].occupiedBy = 'wall'; // wall to the right of white
-		const origin = [0, 8];
+    test("Should not allow pawn to move when obstacle is present", () => {
+        game.board[1][8].occupiedBy = "wall"; // wall above white
+        game.board[0][7].occupiedBy = "wall"; // wall to the left of white
+        game.board[0][9].occupiedBy = "wall"; // wall to the right of white
+        const origin = [0, 8];
         const destination = [2, 8];
         const result = game.movePawn(destination); // check forward
         expect(result.success).toBe(false);
         expect(game.board[origin[0]][origin[1]].occupiedBy).toBe("white");
-        expect(game.board[destination[0]][destination[1]].occupiedBy).toBe(null);
+        expect(game.board[destination[0]][destination[1]].occupiedBy).toBe(
+            null
+        );
         expect(game.whitePos).toEqual(origin);
         expect(game.turn).toBe("white");
 
-		const resultMoveLeft = game.movePawn([0,6]); // check left
-		expect(resultMoveLeft.success).toBe(false);
-		expect(game.whitePos).toEqual([0,8]);
-		expect(game.turn).toBe('white');
-		const resultMoveRight = game.movePawn([0,10]); // check right
-		expect(resultMoveRight.success).toBe(false);
-		expect(game.whitePos).toEqual([0,8]);
-		expect(game.turn).toBe('white');
-		game.turn = 'black';
-		game.board[15][8].occupiedBy = 'wall';
-		const resultMoveBlackDown = game.movePawn([14,8]); // verify down is functioning
-		expect(resultMoveBlackDown.success).toBe(false);
-		expect(game.blackPos).toEqual([16,8]);
-		expect(game.turn).toBe('black');
-
-	});
-
+        const resultMoveLeft = game.movePawn([0, 6]); // check left
+        expect(resultMoveLeft.success).toBe(false);
+        expect(game.whitePos).toEqual([0, 8]);
+        expect(game.turn).toBe("white");
+        const resultMoveRight = game.movePawn([0, 10]); // check right
+        expect(resultMoveRight.success).toBe(false);
+        expect(game.whitePos).toEqual([0, 8]);
+        expect(game.turn).toBe("white");
+        game.turn = "black";
+        game.board[15][8].occupiedBy = "wall";
+        const resultMoveBlackDown = game.movePawn([14, 8]); // verify down is functioning
+        expect(resultMoveBlackDown.success).toBe(false);
+        expect(game.blackPos).toEqual([16, 8]);
+        expect(game.turn).toBe("black");
+    });
 
     test("Should allow wall placement when no obstacles are present, and player has walls remaining", () => {
         const destinationSlotVertical = [0, 3];
@@ -155,79 +157,78 @@ describe("Game movement", () => {
         expect(game.blackPos).toEqual([8, 12]);
     });
 
-	test("Should not allow jumping over a pawn at the edge of the board", () => {
-		// Check right edge of board
-		game.whitePos = [8,14];
-		game.blackPos = [8, 16];
-		game.board[8][14].occupiedBy = 'white';
-		game.board[8][16].occupiedBy = 'black';
+    test("Should not allow jumping over a pawn at the edge of the board", () => {
+        // Check right edge of board
+        game.whitePos = [8, 14];
+        game.blackPos = [8, 16];
+        game.board[8][14].occupiedBy = "white";
+        game.board[8][16].occupiedBy = "black";
 
-		const checkJumpRight = game.movePawn([8,16]);
-		expect(checkJumpRight.success).toBe(false);
-		expect(game.turn).toBe('white');
-		expect(game.whitePos).toEqual([8,14]);
+        const checkJumpRight = game.movePawn([8, 16]);
+        expect(checkJumpRight.success).toBe(false);
+        expect(game.turn).toBe("white");
+        expect(game.whitePos).toEqual([8, 14]);
 
-		// Check right edge of board
-		game.whitePos = [8, 2];
-		game.blackPos = [8, 0];
-		game.board[8][2].occupiedBy = 'white';
-		game.board[8][0].occupiedBy = 'black';
-		const checkJumpLeft = game.movePawn([8,0]);
-		expect(checkJumpLeft.success).toBe(false);
-		expect(game.whitePos).toEqual([8,2]);
-		expect(game.turn).toBe('white');
+        // Check right edge of board
+        game.whitePos = [8, 2];
+        game.blackPos = [8, 0];
+        game.board[8][2].occupiedBy = "white";
+        game.board[8][0].occupiedBy = "black";
+        const checkJumpLeft = game.movePawn([8, 0]);
+        expect(checkJumpLeft.success).toBe(false);
+        expect(game.whitePos).toEqual([8, 2]);
+        expect(game.turn).toBe("white");
 
-		/*
-			* CHECKING TOP AND BOTTOM EDGES NEED TO BE HANDLED SPECIALLY
-			* DUE TO WIN CONDITIONS WHICH HAVE NOT BEEN IMPLEMENTED YET
-		*/
-		
-	});
-	
-	test("Should not allow jumping over a pawn that has a wall between them", () => {
-		game.whitePos = [6,8]; // relocating the white pawn to the middle
-		game.blackPos = [8,8]; // relocating the black pawn to the middle
-		game.board[6][8].occupiedBy = 'white'; //changing the occupancy status of the board
-		game.board[8][8].occupiedBy = 'black'; //changing the occupancy status of the board
-		game.board[7][8].occupiedBy = 'wall'; //changing the occupancy status of the board
+        /*
+         * CHECKING TOP AND BOTTOM EDGES NEED TO BE HANDLED SPECIALLY
+         * DUE TO WIN CONDITIONS WHICH HAVE NOT BEEN IMPLEMENTED YET
+         */
+    });
 
-		const resultMoveWhitePawn = game.movePawn([8,8]); // execute the jump
-		expect(resultMoveWhitePawn.success).toBe(false);
-		expect(game.turn).toBe('white');
-		expect(game.whitePos).toEqual([6,8]);
-	});
+    test("Should not allow jumping over a pawn that has a wall between them", () => {
+        game.whitePos = [6, 8]; // relocating the white pawn to the middle
+        game.blackPos = [8, 8]; // relocating the black pawn to the middle
+        game.board[6][8].occupiedBy = "white"; //changing the occupancy status of the board
+        game.board[8][8].occupiedBy = "black"; //changing the occupancy status of the board
+        game.board[7][8].occupiedBy = "wall"; //changing the occupancy status of the board
 
-	test("Should not allow jumping over a pawn and a wall on the far side of the opposing pawn", ()=> {
-		game.whitePos = [6,8]; //relocating the white pawn to the middle
-		game.blackPos = [8,8]; //relocating the black pawn to the middle
-		game.board[6][8].occupiedBy = 'white'; // changing occupancy status of the board
-		game.board[8][8].occupiedBy = 'black'; // changing occupancy status of the board
-		game.board[9][8].occupiedBy = 'wall'; // changing occupancy status of the board
+        const resultMoveWhitePawn = game.movePawn([8, 8]); // execute the jump
+        expect(resultMoveWhitePawn.success).toBe(false);
+        expect(game.turn).toBe("white");
+        expect(game.whitePos).toEqual([6, 8]);
+    });
 
-		const moveWhitePawnForward = game.movePawn([8,8]); // execute the jump
-		expect(moveWhitePawnForward.success).toBe(false);
-		expect(game.whitePos).toEqual([6,8]);
-		expect(game.turn).toBe('white');
-	});
+    test("Should not allow jumping over a pawn and a wall on the far side of the opposing pawn", () => {
+        game.whitePos = [6, 8]; //relocating the white pawn to the middle
+        game.blackPos = [8, 8]; //relocating the black pawn to the middle
+        game.board[6][8].occupiedBy = "white"; // changing occupancy status of the board
+        game.board[8][8].occupiedBy = "black"; // changing occupancy status of the board
+        game.board[9][8].occupiedBy = "wall"; // changing occupancy status of the board
 
-	test("Should declare white as winner when reaching black's edge of the board", () => {
-		game.whitePos = [14, 10];
-		game.board[0][8].occupiedBy = null;
-		game.board[14][10].occupiedBy = 'white';
+        const moveWhitePawnForward = game.movePawn([8, 8]); // execute the jump
+        expect(moveWhitePawnForward.success).toBe(false);
+        expect(game.whitePos).toEqual([6, 8]);
+        expect(game.turn).toBe("white");
+    });
 
-		const resultWhiteReachesBlackSide = game.movePawn([16,10]);
-		expect(resultWhiteReachesBlackSide.success).toBe(true);
-		expect(game.whiteWon).toBe(true);
-	});
+    test("Should declare white as winner when reaching black's edge of the board", () => {
+        game.whitePos = [14, 10];
+        game.board[0][8].occupiedBy = null;
+        game.board[14][10].occupiedBy = "white";
 
-		test("Should declare black as winner when reaching whites's edge of the board", () => {
-		game.blackPos = [2, 10];
-		game.board[16][8].occupiedBy = null;
-		game.board[2][10].occupiedBy = 'black';
-		game.turn = 'black';
+        const resultWhiteReachesBlackSide = game.movePawn([16, 10]);
+        expect(resultWhiteReachesBlackSide.success).toBe(true);
+        expect(game.whiteWon).toBe(true);
+    });
 
-		const resultBlackReachesBlackSide = game.movePawn([0,10]);
-		expect(resultBlackReachesBlackSide.success).toBe(true);
-		expect(game.blackWon).toBe(true);
-	});
+    test("Should declare black as winner when reaching whites's edge of the board", () => {
+        game.blackPos = [2, 10];
+        game.board[16][8].occupiedBy = null;
+        game.board[2][10].occupiedBy = "black";
+        game.turn = "black";
+
+        const resultBlackReachesBlackSide = game.movePawn([0, 10]);
+        expect(resultBlackReachesBlackSide.success).toBe(true);
+        expect(game.blackWon).toBe(true);
+    });
 });

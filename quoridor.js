@@ -114,16 +114,18 @@ class Game {
         );
     }
 
-    gameWon(){
-        let won = {win: false, winner: null};
-        if (this.turn === 'black') {
-            for(let a = 0; a < 17; a++){
-                if (this.board[16][a].occupiedBy === 'white') won = {win: true, winner: 'white'};
+    gameWon() {
+        let won = { win: false, winner: null };
+        if (this.turn === "black") {
+            for (let a = 0; a < 17; a++) {
+                if (this.board[16][a].occupiedBy === "white")
+                    won = { win: true, winner: "white" };
             }
         }
-        if(this.turn === 'white') {
-            for(let a = 0; a < 17; a++){
-                if (this.board[0][a].occupiedBy === 'black') won = {win: true, winner: 'black'};
+        if (this.turn === "white") {
+            for (let a = 0; a < 17; a++) {
+                if (this.board[0][a].occupiedBy === "black")
+                    won = { win: true, winner: "black" };
             }
         }
         return won;
@@ -163,7 +165,7 @@ class Game {
         /**
          * This function determines if, when a pawn is jumping over another pawn
          * It will end up outside the boundary of the board
-         * @param {number} row starting row of the moving pawn 
+         * @param {number} row starting row of the moving pawn
          * @param {number} col starting column of the moving pawn
          * @param {string} direction direction of travel
          * @returns boolean true if pawn jump is out of bounds
@@ -263,9 +265,9 @@ class Game {
         }
         if (this.isOccupied(destination[0], destination[1])) {
             /*
-                * This block is handling the jumping logic
-                * Updating game state
-            */
+             * This block is handling the jumping logic
+             * Updating game state
+             */
             let jump = jumpOverPawn(currentPos, destination);
             if (jump.success) {
                 let lastPlace = [...currentPos];
@@ -301,37 +303,41 @@ class Game {
          * Looks in the direction of travel for a wall blocking its movement
          * @param {number[]} currentPos - array of numbers indicating the pawns current position
          * @param {string} direction - string indicating direction, one of 'up', 'down', 'left', 'right'.
-         * @returns 
+         * @returns
          */
         const noWallPresent = (currentPos, direction) => {
-            switch(direction){
-                case 'up':
+            switch (direction) {
+                case "up":
                     if (checkForWall(currentPos[0] + 1, currentPos[1])) {
                         return { success: false, message: `Blocked by wall` };
                     }
                     break;
-                case 'down':
+                case "down":
                     if (checkForWall(currentPos[0] - 1, currentPos[1])) {
                         return { success: false, message: `Blocked by wall` };
                     }
                     break;
-                case 'left':
+                case "left":
                     if (checkForWall(currentPos[0], currentPos[1] - 1)) {
                         return { success: false, message: `Blocked by wall` };
                     }
                     break;
-                case 'right':
+                case "right":
                     if (checkForWall(currentPos[0], currentPos[1] + 1)) {
                         return { success: false, message: `Blocked by wall` };
                     }
                     break;
             }
             return true;
-        }
+        };
 
         const lastPlace = [...currentPos];
-        let isBlocked = noWallPresent(currentPos, directionOfTravel(currentPos, destination));
-        if(isBlocked.success === false) return {success: false, message: `Blocked by wall`};
+        let isBlocked = noWallPresent(
+            currentPos,
+            directionOfTravel(currentPos, destination)
+        );
+        if (isBlocked.success === false)
+            return { success: false, message: `Blocked by wall` };
         if (this.turn === "white") this.whitePos = destination;
         if (this.turn === "black") this.blackPos = destination;
         this.board[lastPlace[0]][lastPlace[1]].occupiedBy = null;
@@ -339,7 +345,9 @@ class Game {
         this.manageTurnMove();
         let winningMove = this.gameWon();
         if (winningMove.win) {
-            winningMove.winner === 'white' ? this.whiteWon = true : this.blackWon = true;
+            winningMove.winner === "white"
+                ? (this.whiteWon = true)
+                : (this.blackWon = true);
         }
         return {
             success: true,

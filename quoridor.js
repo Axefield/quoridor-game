@@ -113,7 +113,12 @@ class Game {
             (differenceRow === 0 && differenceCol === 2)
         );
     }
-
+    /**
+     * Looks at the edge rows and determines if a player has won the game
+     * by changing the corresponding this.whiteWon/this.blackWon boolean to true;
+     * This function should be rewritten soon
+     * @returns {object} {win: boolean, winner: string}
+     */
     gameWon() {
         let won = { win: false, winner: null };
         if (this.turn === "black") {

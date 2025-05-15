@@ -114,6 +114,21 @@ class Game {
         );
     }
 
+    gameWon(){
+        let won = {win: false, winner: null};
+        if (this.turn === 'black') {
+            for(let a = 0; a < 17; a++){
+                if (this.board[16][a].occupiedBy === 'white') won = {win: true, winner: 'white'};
+            }
+        }
+        if(this.turn === 'white') {
+            for(let a = 0; a < 17; a++){
+                if (this.board[0][a].occupiedBy === 'black') won = {win: true, winner: 'black'};
+            }
+        }
+        return won;
+    }
+
     /**
      * Attempts to move the current player's pawn to a new destination.
      * @param {number[]} destination - The destination position as [row, col].
@@ -322,6 +337,10 @@ class Game {
         this.board[lastPlace[0]][lastPlace[1]].occupiedBy = null;
         this.board[destination[0]][destination[1]].occupiedBy = this.turn;
         this.manageTurnMove();
+        let winningMove = this.gameWon();
+        if (winningMove.win) {
+            winningMove.winner === 'white' ? this.whiteWon = true : this.blackWon = true;
+        }
         return {
             success: true,
             message: `pawn moved from ${currentPos} to ${destination}`,

@@ -155,7 +155,7 @@ describe("Game movement", () => {
         expect(game.blackPos).toEqual([8, 12]);
     });
 
-	test("Should not allow jumping over a pwn at the edge of the board", () => {
+	test("Should not allow jumping over a pawn at the edge of the board", () => {
 		// Check right edge of board
 		game.whitePos = [8,14];
 		game.blackPos = [8, 16];
@@ -208,5 +208,26 @@ describe("Game movement", () => {
 		expect(moveWhitePawnForward.success).toBe(false);
 		expect(game.whitePos).toEqual([6,8]);
 		expect(game.turn).toBe('white');
+	});
+
+	test("Should declare white as winner when reaching black's edge of the board", () => {
+		game.whitePos = [14, 10];
+		game.board[0][8].occupiedBy = null;
+		game.board[14][10].occupiedBy = 'white';
+
+		const resultWhiteReachesBlackSide = game.movePawn([16,10]);
+		expect(resultWhiteReachesBlackSide.success).toBe(true);
+		expect(game.whiteWon).toBe(true);
+	});
+
+		test("Should declare black as winner when reaching whites's edge of the board", () => {
+		game.blackPos = [2, 10];
+		game.board[16][8].occupiedBy = null;
+		game.board[2][10].occupiedBy = 'black';
+		game.turn = 'black';
+
+		const resultBlackReachesBlackSide = game.movePawn([0,10]);
+		expect(resultBlackReachesBlackSide.success).toBe(true);
+		expect(game.blackWon).toBe(true);
 	});
 });

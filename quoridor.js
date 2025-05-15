@@ -66,12 +66,15 @@ class Game {
     /**
      * Updates the turn and decreases the wall count for the current player.
      */
-    manageTurn(){
+    manageTurnWalls(){
         if (this.turn === 'white') this.whiteWalls--;
         if (this.turn === 'black') this.blackWalls--;
         this.turn = this.turn === 'white' ? 'black' : 'white';
     }
 
+    manageTurnMove(){
+        this.turn = this.turn === 'white' ? 'black' : 'white';
+    }
     /**
      * Checks if a position is outside the bounds of the board.
      * @param {number} row - The row index.
@@ -86,10 +89,10 @@ class Game {
      * Checks if a board cell is empty.
      * @param {number} row - The row index.
      * @param {number} col - The column index.
-     * @returns {boolean} True if unoccupied, false if occupied.
+     * @returns {boolean} True if occupied, false if unoccupied
      */
     isOccupied(row, col){
-        if (this.board[row][col].occupiedBy !== null) return false;
+        if (this.board[row][col].occupiedBy == null) return false;
         return true;
     }
 
@@ -213,8 +216,30 @@ class Game {
             return {success: false, message: `Destination is out of bounds`};
         }
         if (this.isOccupied(destination[0],destination[1])){
-            jumpOverPawn(currentPos, destination);
+            let jump = jumpOverPawn(currentPos, destination);
+            if(jump !== false){
+                let lastPlace = rememberLastPlace(currentPos);
+                if(this.turn === 'white'){
+                    this.whitePos = jump;
+                    this.manageTurnMove();
+                    return {success: true, message: `pawn moved from ${lastPlace} to ${jump}`};
+                }
+                if(this.turn === 'black'){
+                    this.blackPos = jump;
+                    this.manageTurnMove();
+                    return {success: true, message: `pawn moved from ${lastPlace} to ${jump}`};
+                }
+            }
         }
+        const rememberLastPlace = (lastPlace) => {
+            return lastPlace;
+        }
+        const lastPlace = rememberLastPlace(currentPos);
+        this.whitePos = destination;
+        this.board[lastPlace[0]][lastPlace[1]].occupiedBy = null;
+        this.board[destination[0]][destination[[1]]].occupiedBy = this.turn;
+        this.manageTurnMove();
+        return {success: true, message: `pawn moved from ${currentPos} to ${destination}`};
     }
 
     /**
@@ -224,6 +249,9 @@ class Game {
      * @returns {Object} Result of the wall placement attempt.
      */
     placeWall(row, col){  
+        if(this.isOccupied(row,col)){
+            return {success: false, message:`Slot is occupied`};
+        }
         if (
             (this.turn === 'white' && this.whiteWalls < 1) ||
             (this.turn === 'black' && this.blackWalls < 1)
@@ -240,14 +268,14 @@ class Game {
             if (16 - col < 2) return {success: false, message: `Wall too close to board boundary`};
             this.board[row][col].occupiedBy = 'wall';
             this.board[row + 2][col].occupiedBy = 'wall';
-            this.manageTurn();
+            this.manageTurnWalls();
             return {success: true, message: `Vertical wall placed`};
         }
         if (orientation === 'h'){
             if (16 - row < 2) return {success: false, message: `Wall too close to board boundary`};
             this.board[row][col].occupiedBy = 'wall';
             this.board[row][col + 2].occupiedBy = 'wall';
-            this.manageTurn();
+            this.manageTurnWalls();
             return {success: true, message: `Horizontal wall placed`};
         }
         if (orientation === false){
@@ -255,7 +283,4 @@ class Game {
         } 
     }
 }
-
-let game = new Game;
-
-console.log(game.board);
+module.exports = Game;

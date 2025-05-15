@@ -78,13 +78,22 @@ describe('Game movement', () => {
     expect(game.whiteWalls).toBe(9);
   });
 
-  test('Can jump over unblocked pawns if enough space is available', () => {
+  test('Should jump over unblocked pawns if enough space is available', () => {
     game.whitePos = [6,8];
     game.blackPos = [8, 8];
-    const result = game.movePawn([6,8]);
+    game.board[6][8].occupiedBy = 'white';
+    game.board[0][8].occupiedBy = null;
+    game.board[8][8].occupiedBy ='black';
+    game.board[16][8].occupiedBy = null;
+
+    const result = game.movePawn([8,8]);
     expect(result.success).toBe(true);
-    expect(game.whitePos).toBe([10,8]);
+    expect(game.whitePos).toEqual([10,8]);
     expect(game.turn).toBe('black');
+    const moveBlackUpResult = game.movePawn([10,8]);
+    expect(moveBlackUpResult.success).toBe(true);
+    expect(game.turn).toBe('white');
+    expect(game.blackPos).toEqual([12,8]);
 
   });
 });

@@ -1,22 +1,28 @@
 class QuoridorUI {
     constructor() {
         this.game = new Game();
-        this.isWallMode = false;
+        this.phase = 'move'; // 'move', 'wall', 'review'
         this.wallStart = null;
         this.wallEnd = null;
         this.scores = { white: 0, black: 0 };
         this.moveTarget = null;
         this.moveControls = null;
+        this.reviewControls = null;
         this.turnControls = null;
+        this.originalPawnPos = null; // Store original pawn position for cancel/reset
+        this.originalState = null; // Store full state for reset turn
+        this.wallPlacedThisTurn = false; // Track if a wall was placed this turn
         this.initializeElements();
         this.setupEventListeners();
         this.renderBoard();
         this.updateGameInfo();
         this.updateScoreboard();
+        this.updatePhaseBanner();
     }
 
     initializeElements() {
         this.board = document.getElementById('board');
+        this.phaseBanner = document.getElementById('phase-banner');
         this.wallModeBtn = document.getElementById('wall-mode');
         this.newGameBtn = document.getElementById('new-game');
         this.messageDiv = document.getElementById('message');
@@ -25,55 +31,78 @@ class QuoridorUI {
         this.wallControls = document.getElementById('wall-controls');
         this.confirmWallBtn = document.getElementById('confirm-wall');
         this.cancelWallBtn = document.getElementById('cancel-wall');
+        this.skipWallBtn = document.getElementById('skip-wall');
+        this.moveControls = document.getElementById('move-controls');
+        this.confirmMoveBtn = document.getElementById('confirm-move');
+        this.cancelMoveBtn = document.getElementById('cancel-move');
+        this.skipMoveBtn = document.getElementById('skip-move');
+        this.reviewControls = document.getElementById('review-controls');
+        this.endTurnBtn = document.getElementById('end-turn');
+        this.resetTurnBtn = document.getElementById('reset-turn');
         this.whiteScore = document.getElementById('white-score');
         this.blackScore = document.getElementById('black-score');
         this.whiteTurnIndicator = document.getElementById('white-turn-indicator');
         this.blackTurnIndicator = document.getElementById('black-turn-indicator');
-        this.moveControls = document.getElementById('move-controls');
-        this.confirmMoveBtn = document.getElementById('confirm-move');
-        this.cancelMoveBtn = document.getElementById('cancel-move');
-        this.turnControls = document.getElementById('turn-controls');
-        this.finishTurnBtn = document.getElementById('finish-turn');
     }
 
     setupEventListeners() {
-        this.wallModeBtn.addEventListener('click', () => this.toggleWallMode());
+        this.wallModeBtn.addEventListener('click', () => this.enterWallPhase());
         this.newGameBtn.addEventListener('click', () => this.startNewGame());
         this.confirmWallBtn.addEventListener('click', () => this.confirmWallPlacement());
         this.cancelWallBtn.addEventListener('click', () => this.cancelWallPlacement());
+        this.skipWallBtn.addEventListener('click', () => this.skipWallPhase());
         this.confirmMoveBtn.addEventListener('click', () => this.confirmMove());
         this.cancelMoveBtn.addEventListener('click', () => this.cancelMove());
-        this.finishTurnBtn.addEventListener('click', () => this.finishTurn());
+        this.skipMoveBtn.addEventListener('click', () => this.skipMovePhase());
+        this.endTurnBtn.addEventListener('click', () => this.finishTurn());
+        this.resetTurnBtn.addEventListener('click', () => this.resetTurn());
     }
 
-    toggleWallMode() {
-        this.isWallMode = !this.isWallMode;
+    updatePhaseBanner() {
+        this.phaseBanner.style.display = 'block';
+        if (this.phase === 'move') {
+            this.phaseBanner.textContent = 'Move Phase: Select a space to move your pawn or skip.';
+            this.phaseBanner.className = 'phase-banner move';
+        } else if (this.phase === 'wall') {
+            this.phaseBanner.textContent = 'Wall Phase: Place a wall, skip, or cancel.';
+            this.phaseBanner.className = 'phase-banner wall';
+        } else if (this.phase === 'review') {
+            this.phaseBanner.textContent = 'Review Phase: End turn or reset your actions.';
+            this.phaseBanner.className = 'phase-banner move';
+        }
+    }
+
+    enterWallPhase() {
+        if (this.phase !== 'move') return;
+        this.phase = 'wall';
         this.wallStart = null;
         this.wallEnd = null;
         this.moveTarget = null;
         this.wallControls.style.display = 'none';
         this.moveControls.style.display = 'none';
+        this.reviewControls.style.display = 'none';
         this.turnControls.style.display = 'none';
-        this.wallModeBtn.textContent = this.isWallMode ? 'Place Wall' : 'Move Pawn';
-        this.wallModeBtn.style.background = this.isWallMode ? '#8B4513' : '#3498db';
-        this.showMessage(this.isWallMode ? 'Wall placement mode - Select two adjacent wall slots' : 'Pawn movement mode - Click a space to select your move', 'success');
+        this.updatePhaseBanner();
         this.renderBoard();
     }
 
     startNewGame() {
-        this.game = new Game();
-        this.isWallMode = false;
+        this.game.reset();
+        this.phase = 'move';
         this.wallStart = null;
         this.wallEnd = null;
         this.moveTarget = null;
+        this.originalPawnPos = null;
+        this.originalState = null;
         this.wallControls.style.display = 'none';
         this.moveControls.style.display = 'none';
-        this.turnControls.style.display = 'none';
-        this.wallModeBtn.textContent = 'Move Pawn';
-        this.wallModeBtn.style.background = '#3498db';
+        this.reviewControls.style.display = 'none';
+        this.wallModeBtn.textContent = 'Place Wall';
+        this.wallModeBtn.style.background = '#8B4513';
         this.renderBoard();
         this.updateGameInfo();
-        this.showMessage('New game started!', 'success');
+        this.updatePhaseBanner();
+        this.showMessage('New game started! Move your pawn to begin.', 'success');
     }
 
     renderBoard() {
@@ -88,6 +117,10 @@ class QuoridorUI {
         if (this.wallStart && this.wallEnd) {
             this.drawWallPreview(this.wallStart, this.wallEnd);
         }
+        // Show only relevant controls
+        this.moveControls.style.display = this.phase === 'move' ? 'block' : 'none';
+        this.wallControls.style.display = this.phase === 'wall' ? 'block' : 'none';
+        this.reviewControls.style.display = this.phase === 'review' ? 'block' : 'none';
     }
 
     createCell(row, col) {
@@ -113,6 +146,22 @@ class QuoridorUI {
             wall.className = 'wall placed';
             const orientation = this.game.determineWallOrientation(row, col);
             wall.classList.add(orientation === 'v' ? 'vertical' : 'horizontal');
+            // Check for adjacent walls and add connection classes
+            if (orientation === 'v') {
+                if (row > 1 && this.game.board[row - 2][col].occupiedBy === 'wall') {
+                    wall.classList.add('wall-connected-top');
+                }
+                if (row < 15 && this.game.board[row + 2][col].occupiedBy === 'wall') {
+                    wall.classList.add('wall-connected-bottom');
+                }
+            } else if (orientation === 'h') {
+                if (col > 1 && this.game.board[row][col - 2].occupiedBy === 'wall') {
+                    wall.classList.add('wall-connected-left');
+                }
+                if (col < 15 && this.game.board[row][col + 2].occupiedBy === 'wall') {
+                    wall.classList.add('wall-connected-right');
+                }
+            }
             cell.appendChild(wall);
         } else if (this.game.board[row][col].occupiedBy === 'white') {
             const pawn = document.createElement('div');
@@ -131,33 +180,199 @@ class QuoridorUI {
     }
 
     handleCellClick(row, col) {
-        if (this.isWallMode) {
-            this.handleWallSelection(row, col);
-        } else {
+        if (this.phase === 'move') {
             this.handleMoveSelection(row, col);
+        } else if (this.phase === 'wall') {
+            this.handleWallSelection(row, col);
         }
     }
 
+    handleMoveSelection(row, col) {
+        // Only allow space selection
+        const type = this.game.board[row][col].type;
+        if (type !== 'space') return;
+        if (this.game.board[row][col].occupiedBy) return;
+        const currentPos = this.game.turn === 'white' ? this.game.whitePos : this.game.blackPos;
+        const action = this.game.movePawn([row, col]);
+        if (!action.success) {
+            this.showMessage(action.message, 'error');
+            return;
+        }
+        // Store the original state for reset turn
+        if (!this.originalState) this.originalState = this.game.getState();
+        this.originalPawnPos = [...currentPos];
+        this.moveTarget = [row, col];
+        this.renderBoard();
+    }
+
+    confirmMove() {
+        if (!this.moveTarget) return;
+        this.animatePawn(this.moveTarget);
+        this.moveTarget = null;
+        this.originalPawnPos = null;
+        this.phase = 'wall';
+        this.updatePhaseBanner();
+        this.renderBoard();
+        this.updateGameInfo();
+        this.showMessage('Now you may place a wall, skip, or cancel.', 'success');
+    }
+
+    cancelMove() {
+        if (this.originalPawnPos && this.moveTarget) {
+            const color = this.game.turn === 'white' ? 'white' : 'black';
+            const [oldRow, oldCol] = this.moveTarget;
+            const [origRow, origCol] = this.originalPawnPos;
+            this.game.board[oldRow][oldCol].occupiedBy = null;
+            this.game.board[origRow][origCol].occupiedBy = color;
+            if (color === 'white') this.game.whitePos = [origRow, origCol];
+            if (color === 'black') this.game.blackPos = [origRow, origCol];
+        }
+        this.moveTarget = null;
+        this.originalPawnPos = null;
+        this.renderBoard();
+    }
+
+    skipMovePhase() {
+        if (!this.originalState) this.originalState = this.game.getState();
+        this.moveTarget = null;
+        this.originalPawnPos = null;
+        this.phase = 'wall';
+        this.updatePhaseBanner();
+        this.renderBoard();
+        this.showMessage('Move skipped. Now you may place a wall, skip, or cancel.', 'success');
+    }
+
     handleWallSelection(row, col) {
-        // Only allow wall slot selection
         const type = this.game.board[row][col].type;
         if (type !== 'v-slot' && type !== 'h-slot') return;
         if (!this.wallStart) {
             this.wallStart = [row, col];
             this.wallEnd = null;
-            this.wallControls.style.display = 'none';
             this.renderBoard();
         } else if (!this.wallEnd && this.isAdjacentWallSlot(this.wallStart, [row, col])) {
             this.wallEnd = [row, col];
-            this.wallControls.style.display = 'block';
             this.renderBoard();
         } else {
-            // Reset if invalid
             this.wallStart = [row, col];
             this.wallEnd = null;
-            this.wallControls.style.display = 'none';
             this.renderBoard();
         }
+    }
+
+    confirmWallPlacement() {
+        if (!this.wallStart || !this.wallEnd) return;
+        const result = this.game.placeWallEndpoints(this.wallStart, this.wallEnd);
+        if (result.success) {
+            this.showMessage(result.message, 'success');
+            this.wallStart = null;
+            this.wallEnd = null;
+            this.phase = 'review';
+            this.wallPlacedThisTurn = true;
+            this.updatePhaseBanner();
+            this.renderBoard();
+            this.updateGameInfo();
+            const gameWon = this.game.gameWon();
+            if (gameWon.win) {
+                this.scores[gameWon.winner]++;
+                this.updateScoreboard();
+                this.showMessage(`${gameWon.winner} player wins!`, 'success');
+                setTimeout(() => this.startNewGame(), 2000);
+            }
+        } else {
+            this.showMessage(result.message, 'error');
+        }
+    }
+
+    cancelWallPlacement() {
+        this.wallStart = null;
+        this.wallEnd = null;
+        this.renderBoard();
+    }
+
+    skipWallPhase() {
+        this.wallStart = null;
+        this.wallEnd = null;
+        this.phase = 'review';
+        this.wallPlacedThisTurn = false;
+        this.updatePhaseBanner();
+        this.renderBoard();
+        this.showMessage('Wall phase skipped. Review your turn or end turn.', 'success');
+    }
+
+    finishTurn() {
+        this.game.finalizeTurn(this.wallPlacedThisTurn);
+        this.phase = 'move';
+        this.wallStart = null;
+        this.wallEnd = null;
+        this.moveTarget = null;
+        this.originalPawnPos = null;
+        this.originalState = null;
+        this.wallPlacedThisTurn = false;
+        this.updatePhaseBanner();
+        this.renderBoard();
+        this.updateGameInfo();
+    }
+
+    resetTurn() {
+        if (this.originalState) {
+            // Restore the full game state
+            this.restoreState(this.originalState);
+        }
+        this.phase = 'move';
+        this.wallStart = null;
+        this.wallEnd = null;
+        this.moveTarget = null;
+        this.originalPawnPos = null;
+        this.updatePhaseBanner();
+        this.renderBoard();
+        this.updateGameInfo();
+        this.showMessage('Turn reset. Start your move again.', 'success');
+    }
+
+    restoreState(state) {
+        this.game.turn = state.turn;
+        this.game.whitePos = [...state.whitePos];
+        this.game.blackPos = [...state.blackPos];
+        this.game.whiteWalls = state.whiteWalls;
+        this.game.blackWalls = state.blackWalls;
+        this.game.whiteWon = state.whiteWon;
+        this.game.blackWon = state.blackWon;
+        this.game.board = state.board.map(row => row.map(cell => ({ ...cell })));
+    }
+
+    animatePawn(target) {
+        // Add animation class to pawn at target
+        setTimeout(() => {
+            this.renderBoard();
+        }, 400);
+    }
+
+    updateGameInfo() {
+        document.getElementById('white-walls').textContent = this.game.whiteWalls;
+        document.getElementById('black-walls').textContent = this.game.blackWalls;
+        this.whiteInfo.classList.toggle('active', this.game.turn === 'white');
+        this.blackInfo.classList.toggle('active', this.game.turn === 'black');
+        this.whiteTurnIndicator.style.display = this.game.turn === 'white' ? 'inline-block' : 'none';
+        this.blackTurnIndicator.style.display = this.game.turn === 'black' ? 'inline-block' : 'none';
+    }
+
+    updateScoreboard() {
+        this.whiteScore.textContent = this.scores.white;
+        this.blackScore.textContent = this.scores.black;
+    }
+
+    showMessage(message, type = '') {
+        this.messageDiv.textContent = message;
+        this.messageDiv.className = type;
+        setTimeout(() => {
+            this.messageDiv.textContent = '';
+            this.messageDiv.className = '';
+        }, 3000);
+    }
+
+    isWinnerPawn(color) {
+        const won = this.game.gameWon();
+        return (won.win && won.winner === color);
     }
 
     isAdjacentWallSlot(a, b) {
@@ -197,130 +412,6 @@ class QuoridorUI {
         }
         preview.style.position = 'absolute';
         this.board.appendChild(preview);
-    }
-
-    confirmWallPlacement() {
-        if (!this.wallStart || !this.wallEnd) return;
-        // Place wall at the first slot (game logic expects one coordinate)
-        const result = this.game.placeWall(this.wallStart[0], this.wallStart[1]);
-        if (result.success) {
-            this.showMessage(result.message, 'success');
-            this.wallStart = null;
-            this.wallEnd = null;
-            this.wallControls.style.display = 'none';
-            this.renderBoard();
-            this.updateGameInfo();
-            // Check for win after wall placement
-            const gameWon = this.game.gameWon();
-            if (gameWon.win) {
-                this.scores[gameWon.winner]++;
-                this.updateScoreboard();
-                this.showMessage(`${gameWon.winner} player wins!`, 'success');
-                setTimeout(() => this.startNewGame(), 2000);
-            }
-        } else {
-            this.showMessage(result.message, 'error');
-        }
-    }
-
-    cancelWallPlacement() {
-        this.wallStart = null;
-        this.wallEnd = null;
-        this.wallControls.style.display = 'none';
-        this.renderBoard();
-    }
-
-    handleMoveSelection(row, col) {
-        // Only allow space selection
-        const type = this.game.board[row][col].type;
-        if (type !== 'space') return;
-        // Only allow if not already occupied
-        if (this.game.board[row][col].occupiedBy) return;
-        // Only allow if valid move
-        const currentPos = this.game.turn === 'white' ? this.game.whitePos : this.game.blackPos;
-        const action = this.game.movePawn([row, col]);
-        if (!action.success) {
-            this.showMessage(action.message, 'error');
-            return;
-        }
-        // Don't actually move yet, just preview
-        this.moveTarget = [row, col];
-        this.moveControls.style.display = 'block';
-        this.wallControls.style.display = 'none';
-        this.turnControls.style.display = 'none';
-        this.renderBoard();
-    }
-
-    confirmMove() {
-        if (!this.moveTarget) return;
-        // Actually move the pawn
-        const action = this.game.movePawn(this.moveTarget);
-        if (action.success) {
-            this.animatePawn(this.moveTarget);
-            this.moveTarget = null;
-            this.moveControls.style.display = 'none';
-            this.turnControls.style.display = 'block';
-            this.renderBoard();
-            this.updateGameInfo();
-            this.showMessage(action.message, 'success');
-            const gameWon = this.game.gameWon();
-            if (gameWon.win) {
-                this.scores[gameWon.winner]++;
-                this.updateScoreboard();
-                this.showMessage(`${gameWon.winner} player wins!`, 'success');
-                setTimeout(() => this.startNewGame(), 2000);
-            }
-        } else {
-            this.showMessage(action.message, 'error');
-        }
-    }
-
-    cancelMove() {
-        this.moveTarget = null;
-        this.moveControls.style.display = 'none';
-        this.turnControls.style.display = 'none';
-        this.renderBoard();
-    }
-
-    finishTurn() {
-        this.turnControls.style.display = 'none';
-        this.renderBoard();
-        this.updateGameInfo();
-    }
-
-    animatePawn(target) {
-        // Add animation class to pawn at target
-        setTimeout(() => {
-            this.renderBoard();
-        }, 400);
-    }
-
-    updateGameInfo() {
-        document.getElementById('white-walls').textContent = this.game.whiteWalls;
-        document.getElementById('black-walls').textContent = this.game.blackWalls;
-        this.whiteInfo.classList.toggle('active', this.game.turn === 'white');
-        this.blackInfo.classList.toggle('active', this.game.turn === 'black');
-        this.whiteTurnIndicator.style.display = this.game.turn === 'white' ? 'inline-block' : 'none';
-        this.blackTurnIndicator.style.display = this.game.turn === 'black' ? 'inline-block' : 'none';
-    }
-
-    updateScoreboard() {
-        this.whiteScore.textContent = this.scores.white;
-        this.blackScore.textContent = this.scores.black;
-    }
-
-    showMessage(message, type = '') {
-        this.messageDiv.textContent = message;
-        this.messageDiv.className = type;
-        setTimeout(() => {
-            this.messageDiv.textContent = '';
-            this.messageDiv.className = '';
-        }, 3000);
-    }
-
-    isWinnerPawn(color) {
-        const won = this.game.gameWon();
-        return (won.win && won.winner === color);
     }
 }
 

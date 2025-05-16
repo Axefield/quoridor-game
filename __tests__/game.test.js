@@ -232,3 +232,60 @@ describe("Game movement", () => {
         expect(game.blackWon).toBe(true);
     });
 });
+
+describe("Pathfinding and Wall Placement Validation", () => {
+    let game;
+    beforeEach(() => {
+        game = new Game();
+    });
+
+    test("Should not allow wall placement that blocks all paths for either player", () => {
+        // Place walls to nearly block white, but leave one path
+        for (let i = 1; i < 15; i += 2) {
+            game.placeWall(i, 7); // vertical walls
+        }
+        // Try to block the last path
+        const result = game.placeWall(15, 7);
+        expect(result.success).toBe(false);
+        expect(result.message).toMatch(/block a player's path/);
+    });
+
+    test("Should not allow overlapping wall placement", () => {
+        const first = game.placeWall(0, 1); // vertical
+        const overlap = game.placeWall(0, 1); // same spot
+        expect(first.success).toBe(true);
+        expect(overlap.success).toBe(false);
+        expect(overlap.message).toMatch(/occupied/);
+    });
+
+    test("Should not allow wall placement with invalid orientation", () => {
+        // Try to place a wall on a space (not a wall slot)
+        const result = game.placeWall(0, 0);
+        expect(result.success).toBe(false);
+        expect(result.message).toMatch(/space or intersection/);
+    });
+
+    test("Wall count decrements only on valid placement", () => {
+        const before = game.whiteWalls;
+        const fail = game.placeWall(0, 0); // invalid
+        expect(game.whiteWalls).toBe(before);
+        const success = game.placeWall(0, 1); // valid
+        expect(success.success).toBe(true);
+        expect(game.whiteWalls).toBe(before - 1);
+    });
+
+    test("Turn alternates only on valid move or wall", () => {
+        const t0 = game.turn;
+        const fail = game.placeWall(0, 0); // invalid
+        expect(game.turn).toBe(t0);
+        const success = game.placeWall(0, 1); // valid
+        expect(game.turn).not.toBe(t0);
+    });
+
+    test("Move and wall placement return feedback messages", () => {
+        const move = game.movePawn([2, 8]);
+        expect(typeof move.message).toBe("string");
+        const wall = game.placeWall(0, 1);
+        expect(typeof wall.message).toBe("string");
+    });
+});

@@ -6,6 +6,13 @@ class Game {
      * Initializes a new game instance.
      */
     constructor() {
+        this.reset();
+    }
+
+    /**
+     * Resets the game to its initial state.
+     */
+    reset() {
         this.turn = "white";
         this.whitePos = [0, 8];
         this.blackPos = [16, 8];
@@ -14,6 +21,22 @@ class Game {
         this.whiteWon = false;
         this.blackWon = false;
         this.board = this.initializeBoard();
+    }
+
+    /**
+     * Returns a serializable snapshot of the current game state.
+     */
+    getState() {
+        return {
+            turn: this.turn,
+            whitePos: [...this.whitePos],
+            blackPos: [...this.blackPos],
+            whiteWalls: this.whiteWalls,
+            blackWalls: this.blackWalls,
+            whiteWon: this.whiteWon,
+            blackWon: this.blackWon,
+            board: this.board.map(row => row.map(cell => ({ ...cell })))
+        };
     }
 
     /**
@@ -515,7 +538,6 @@ class Game {
             }
             this.board[row][col].occupiedBy = "wall";
             this.board[row + 2][col].occupiedBy = "wall";
-            this.manageTurnWalls();
             return { success: true, message: `Vertical wall placed` };
         }
         if (orientation === "h") {
@@ -532,7 +554,6 @@ class Game {
             }
             this.board[row][col].occupiedBy = "wall";
             this.board[row][col + 2].occupiedBy = "wall";
-            this.manageTurnWalls();
             return { success: true, message: `Horizontal wall placed` };
         }
         if (orientation === false) {
@@ -541,6 +562,42 @@ class Game {
                 message: `Cannot place wall in a space or intersection`,
             };
         }
+    }
+
+    /**
+     * Finalizes the turn: decrements wall count if a wall was placed, then advances the turn.
+     * @param {boolean} wallPlaced - Whether a wall was placed this turn.
+     */
+    finalizeTurn(wallPlaced) {
+        if (wallPlaced) {
+            if (this.turn === "white") this.whiteWalls--;
+            if (this.turn === "black") this.blackWalls--;
+        }
+        this.turn = this.turn === "white" ? "black" : "white";
+    }
+
+    /**
+     * Attempts to place a wall using two endpoints (for UI two-step flow).
+     * @param {number[]} start - First endpoint [row, col]
+     * @param {number[]} end - Second endpoint [row, col]
+     * @returns {Object} Result of the wall placement attempt.
+     */
+    placeWallEndpoints(start, end) {
+        // Validate both endpoints are wall slots and adjacent
+        const [r1, c1] = start, [r2, c2] = end;
+        const type1 = this.board[r1][c1].type;
+        const type2 = this.board[r2][c2].type;
+        if (type1 !== type2) {
+            return { success: false, message: "Wall endpoints must be the same type (vertical or horizontal)" };
+        }
+        if (type1 === 'v-slot' && !(Math.abs(r1 - r2) === 2 && c1 === c2)) {
+            return { success: false, message: "Vertical wall endpoints must be two rows apart in the same column" };
+        }
+        if (type1 === 'h-slot' && !(Math.abs(c1 - c2) === 2 && r1 === r2)) {
+            return { success: false, message: "Horizontal wall endpoints must be two columns apart in the same row" };
+        }
+        // Place wall at the first endpoint (existing logic)
+        return this.placeWall(r1, c1);
     }
 }
 

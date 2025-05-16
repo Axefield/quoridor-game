@@ -14,6 +14,7 @@ class Game {
      */
     reset() {
         this.turn = "white";
+        this.phase = "move"; // 'move', 'wall', 'review'
         this.whitePos = [0, 8];
         this.blackPos = [16, 8];
         this.whiteWalls = 10;
@@ -21,6 +22,7 @@ class Game {
         this.whiteWon = false;
         this.blackWon = false;
         this.board = this.initializeBoard();
+        this.lastAction = null; // Track last action for UI feedback
     }
 
     /**
@@ -86,21 +88,6 @@ class Game {
         return false;
     }
 
-    /**
-     * Updates the turn and decreases the wall count for the current player.
-     */
-    manageTurnWalls() {
-        if (this.turn === "white") this.whiteWalls--;
-        if (this.turn === "black") this.blackWalls--;
-        this.turn = this.turn === "white" ? "black" : "white";
-    }
-
-    /**
-     * Updates whose turn it is
-     */
-    manageTurnMove() {
-        this.turn = this.turn === "white" ? "black" : "white";
-    }
     /**
      * Checks if a position is outside the bounds of the board.
      * @param {number} row - The row index.
@@ -305,7 +292,6 @@ class Game {
                     this.board[jump.destination[0]][
                         jump.destination[1]
                     ].occupiedBy = "white";
-                    this.manageTurnMove();
                     return {
                         success: true,
                         message: `pawn moved from ${lastPlace} to ${jump.destination}`,
@@ -317,7 +303,6 @@ class Game {
                     this.board[jump.destination[0]][
                         jump.destination[1]
                     ].occupiedBy = "black";
-                    this.manageTurnMove();
                     return {
                         success: true,
                         message: `pawn moved from ${lastPlace} to ${jump.destination}`,
@@ -370,7 +355,6 @@ class Game {
         if (this.turn === "black") this.blackPos = destination;
         this.board[lastPlace[0]][lastPlace[1]].occupiedBy = null;
         this.board[destination[0]][destination[1]].occupiedBy = this.turn;
-        this.manageTurnMove();
         let winningMove = this.gameWon();
         if (winningMove.win) {
             winningMove.winner === "white"
@@ -565,18 +549,6 @@ class Game {
     }
 
     /**
-     * Finalizes the turn: decrements wall count if a wall was placed, then advances the turn.
-     * @param {boolean} wallPlaced - Whether a wall was placed this turn.
-     */
-    finalizeTurn(wallPlaced) {
-        if (wallPlaced) {
-            if (this.turn === "white") this.whiteWalls--;
-            if (this.turn === "black") this.blackWalls--;
-        }
-        this.turn = this.turn === "white" ? "black" : "white";
-    }
-
-    /**
      * Attempts to place a wall using two endpoints (for UI two-step flow).
      * @param {number[]} start - First endpoint [row, col]
      * @param {number[]} end - Second endpoint [row, col]
@@ -597,7 +569,126 @@ class Game {
             return { success: false, message: "Horizontal wall endpoints must be two columns apart in the same row" };
         }
         // Place wall at the first endpoint (existing logic)
-        return this.placeWall(r1, c1);
+        const result = this.placeWall(r1, c1);
+        if (result.success) {
+            // Decrement wall count (but do NOT switch turn here)
+            if (this.turn === "white") this.whiteWalls--;
+            if (this.turn === "black") this.blackWalls--;
+        }
+        return result;
+    }
+
+    /**
+     * Handles the complete turn flow and state transitions
+     * @param {string} action - The action taken ('move', 'wall', 'skip', 'end')
+     * @param {Object} data - Additional data needed for the action
+     * @returns {Object} Result of the action with state update info
+     */
+    handleTurn(action, data = {}) {
+        const result = {
+            success: false,
+            message: '',
+            stateUpdate: {
+                phaseChanged: false,
+                turnChanged: false,
+                wallCountChanged: false,
+                gameWon: false
+            }
+        };
+
+        switch (action) {
+            case 'move':
+                if (this.phase !== 'move') {
+                    result.message = 'Not in move phase';
+                    return result;
+                }
+                const moveResult = this.movePawn(data.destination);
+                if (moveResult.success) {
+                    this.phase = 'wall';
+                    this.lastAction = 'move';
+                    result.stateUpdate.phaseChanged = true;
+                    result.message = 'Move successful. Wall phase begins.';
+                }
+                return { ...result, ...moveResult };
+
+            case 'wall':
+                if (this.phase !== 'wall') {
+                    result.message = 'Not in wall phase';
+                    return result;
+                }
+                const wallResult = this.placeWallEndpoints(data.start, data.end);
+                if (wallResult.success) {
+                    this.phase = 'review';
+                    this.lastAction = 'wall';
+                    result.stateUpdate.phaseChanged = true;
+                    result.stateUpdate.wallCountChanged = true;
+                    result.message = 'Wall placed. Review phase begins.';
+                }
+                return { ...result, ...wallResult };
+
+            case 'skip':
+                if (this.phase === 'move') {
+                    this.phase = 'wall';
+                    this.lastAction = 'skip_move';
+                    result.stateUpdate.phaseChanged = true;
+                    result.message = 'Move skipped. Wall phase begins.';
+                } else if (this.phase === 'wall') {
+                    this.phase = 'review';
+                    this.lastAction = 'skip_wall';
+                    result.stateUpdate.phaseChanged = true;
+                    result.message = 'Wall phase skipped. Review phase begins.';
+                }
+                result.success = true;
+                return result;
+
+            case 'end':
+                if (this.phase !== 'review') {
+                    result.message = 'Not in review phase';
+                    return result;
+                }
+                this.turn = this.turn === 'white' ? 'black' : 'white';
+                this.phase = 'move';
+                this.lastAction = 'end_turn';
+                result.stateUpdate.phaseChanged = true;
+                result.stateUpdate.turnChanged = true;
+                result.message = 'Turn ended. Next player\'s move phase begins.';
+                result.success = true;
+                return result;
+
+            case 'reset':
+                if (this.phase !== 'review') {
+                    result.message = 'Can only reset during review phase';
+                    return result;
+                }
+                if (data.originalState) {
+                    this.restoreState(data.originalState);
+                    this.phase = 'move';
+                    this.lastAction = 'reset';
+                    result.stateUpdate.phaseChanged = true;
+                    result.message = 'Turn reset. Move phase begins.';
+                    result.success = true;
+                }
+                return result;
+
+            default:
+                result.message = 'Invalid action';
+                return result;
+        }
+    }
+
+    /**
+     * Restores game state from a saved state
+     * @param {Object} state - The state to restore
+     */
+    restoreState(state) {
+        this.turn = state.turn;
+        this.whitePos = [...state.whitePos];
+        this.blackPos = [...state.blackPos];
+        this.whiteWalls = state.whiteWalls;
+        this.blackWalls = state.blackWalls;
+        this.whiteWon = state.whiteWon;
+        this.blackWon = state.blackWon;
+        this.board = state.board.map(row => row.map(cell => ({ ...cell })));
     }
 }
 

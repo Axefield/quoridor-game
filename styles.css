@@ -214,24 +214,38 @@ button:active {
 }
 
 #message {
-    margin-top: 1rem;
-    padding: 1rem;
-    border-radius: 6px;
-    text-align: center;
+    margin: 1.5rem auto 0 auto;
+    min-height: 2.2em;
+    max-width: 500px;
+    font-size: 1.15rem;
     font-weight: 500;
-    transition: all 0.3s ease;
+    border-radius: 8px;
+    padding: 0.7em 1.2em;
+    text-align: center;
+    box-shadow: 0 2px 8px #0001;
+    transition: background 0.3s, color 0.3s;
+    background: #f8f9fa;
+    color: #222;
+    border: 2px solid transparent;
+    z-index: 10;
 }
 
 #message.success {
-    background: #d4edda;
-    color: #155724;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: #eafaf1;
+    color: #218838;
+    border-color: #27ae60;
 }
 
 #message.error {
-    background: #f8d7da;
-    color: #721c24;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: #fff0f0;
+    color: #c0392b;
+    border-color: #e74c3c;
+}
+
+#message.info {
+    background: #eaf4fb;
+    color: #2176ae;
+    border-color: #2980b9;
 }
 
 .selected-slot {
@@ -410,25 +424,33 @@ button:active {
 }
 
 .phase-banner {
-    text-align: center;
     font-size: 1.2rem;
-    font-weight: bold;
-    margin-bottom: 1rem;
-    padding: 0.7rem 0;
+    font-weight: 600;
+    padding: 0.7em 1.2em;
     border-radius: 8px;
-    background: #e3f2fd;
-    color: #1565c0;
-    box-shadow: 0 2px 8px rgba(44, 62, 80, 0.06);
-    letter-spacing: 1px;
-    display: none;
+    margin: 1.2em auto 1em auto;
+    text-align: center;
+    box-shadow: 0 2px 8px #0001;
+    transition: background 0.3s, color 0.3s;
+    background: #f8f9fa;
+    color: #222;
+    border: 2px solid #bbb;
+    max-width: 500px;
 }
 .phase-banner.move {
-    background: #e3f2fd;
-    color: #1565c0;
+    background: #eafaf1;
+    color: #218838;
+    border-color: #27ae60;
 }
 .phase-banner.wall {
-    background: #fbeee6;
-    color: #8B4513;
+    background: #fdf6e3;
+    color: #b9770e;
+    border-color: #e1b87a;
+}
+.phase-banner.review {
+    background: #eaf4fb;
+    color: #2176ae;
+    border-color: #2980b9;
 }
 
 .phase-banner-card {
@@ -456,4 +478,108 @@ button:active {
 }
 .phase-banner.wall {
     color: #8B4513;
+}
+
+.wall-overlay {
+    position: absolute;
+    z-index: 10;
+    background: linear-gradient(90deg, #a0522d 0%, #deb887 100%);
+    box-shadow: 0 4px 12px 0 #7a4a1e33, 0 1px 0 #fff4;
+    border: 2px solid #7a4a1e;
+    border-radius: 9px;
+    pointer-events: none;
+    transition: box-shadow 0.2s;
+}
+.wall-overlay.vertical {
+    width: 18px;
+}
+.wall-overlay.horizontal {
+    height: 18px;
+}
+
+#board .cell {
+    outline: none;
+}
+#board .cell:focus, #board .cell:hover {
+    box-shadow: 0 0 0 3px #2980b955;
+    z-index: 2;
+}
+.selected-slot {
+    background: #ffe9b3 !important;
+    border: 2px solid #e1b87a;
+}
+.valid-slot {
+    background: #eafaf1 !important;
+    border: 2px dashed #27ae60;
+}
+.move-preview {
+    background: #eaf4fb !important;
+    border: 2px dashed #2980b9;
+}
+
+.wall-preview {
+    background: repeating-linear-gradient(135deg, #b9770e 0 8px, #fff2 8px 16px);
+    opacity: 0.7;
+    border-radius: 8px;
+    border: 2px dashed #b9770e;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.modal-content {
+    background: #fff;
+    padding: 2.5em 2em;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px #0003;
+    text-align: center;
+    max-width: 350px;
+}
+.modal-content h2 {
+    margin-bottom: 0.5em;
+    color: #27ae60;
+}
+.modal-content button {
+    margin-top: 1.5em;
+    background: #27ae60;
+    color: #fff;
+    font-size: 1.1em;
+    padding: 0.7em 2em;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.modal-content button:hover {
+    background: #219150;
+}
+
+@media (max-width: 600px) {
+    .container {
+        padding: 0.5rem;
+    }
+    .phase-banner, #message {
+        font-size: 1rem;
+        padding: 0.5em 0.7em;
+    }
+    .modal-content {
+        padding: 1.2em 0.5em;
+    }
+}
+
+.visually-hidden {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    border: 0;
 } 

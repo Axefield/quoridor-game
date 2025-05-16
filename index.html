@@ -48,31 +48,39 @@
         </div>
 
         <div class="phase-banner-card">
-            <div id="phase-banner" class="phase-banner"></div>
+            <div id="phase-banner" class="phase-banner" role="status" aria-live="polite"></div>
         </div>
-        <div id="board"></div>
+        <div id="board" role="grid" aria-label="Quoridor board"></div>
 
-        <div id="move-controls" style="display:none; margin-top:1rem; text-align:center;">
+        <div id="move-controls" style="display:none; margin-top:1rem; text-align:center;" aria-label="Move Controls">
             <button id="confirm-move" style="background:#27ae60; color:white; margin-right:1rem;">Confirm Move</button>
             <button id="cancel-move" style="background:#aaa; color:white; margin-right:1rem;">Cancel</button>
             <button id="skip-move" style="background:#2980b9; color:white;">Skip Move</button>
         </div>
-        <div id="wall-controls" style="display:none; margin-top:1rem; text-align:center;">
+        <div id="wall-controls" style="display:none; margin-top:1rem; text-align:center;" aria-label="Wall Controls">
             <button id="confirm-wall" style="background:#8B4513; color:white; margin-right:1rem;">Confirm Wall</button>
             <button id="cancel-wall" style="background:#aaa; color:white; margin-right:1rem;">Cancel</button>
             <button id="skip-wall" style="background:#2980b9; color:white;">Skip Wall</button>
         </div>
-        <div id="review-controls" style="display:none; margin-top:1rem; text-align:center;">
+        <div id="review-controls" style="display:none; margin-top:1rem; text-align:center;" aria-label="Review Controls">
             <button id="end-turn" style="background:#27ae60; color:white; margin-right:1rem;">End Turn</button>
             <button id="reset-turn" style="background:#e74c3c; color:white;">Reset Turn</button>
         </div>
 
         <div class="controls">
-            <button id="wall-mode">Toggle Wall Mode</button>
             <button id="new-game">New Game</button>
         </div>
 
-        <div id="message"></div>
+        <div id="message" role="alert" aria-live="assertive"></div>
+        <div id="message-live" class="visually-hidden" aria-live="polite"></div>
+
+        <div id="game-end-modal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="game-end-title">
+            <div class="modal-content">
+                <h2 id="game-end-title">Game Over</h2>
+                <p id="game-end-message"></p>
+                <button id="modal-new-game">New Game</button>
+            </div>
+        </div>
     </div>
 
     <script src="quoridor.js"></script>

@@ -1,7 +1,6 @@
 class QuoridorUI {
     constructor() {
         this.game = new Game();
-        this.phase = 'move'; // 'move', 'wall', 'review'
         this.wallStart = null;
         this.wallEnd = null;
         this.scores = { white: 0, black: 0 };
@@ -9,9 +8,8 @@ class QuoridorUI {
         this.moveControls = null;
         this.reviewControls = null;
         this.turnControls = null;
-        this.originalPawnPos = null; // Store original pawn position for cancel/reset
         this.originalState = null; // Store full state for reset turn
-        this.wallPlacedThisTurn = false; // Track if a wall was placed this turn
+        this.gameOver = false;
         this.initializeElements();
         this.setupEventListeners();
         this.renderBoard();
@@ -23,9 +21,9 @@ class QuoridorUI {
     initializeElements() {
         this.board = document.getElementById('board');
         this.phaseBanner = document.getElementById('phase-banner');
-        this.wallModeBtn = document.getElementById('wall-mode');
         this.newGameBtn = document.getElementById('new-game');
         this.messageDiv = document.getElementById('message');
+        this.messageLive = document.getElementById('message-live');
         this.whiteInfo = document.getElementById('white-info');
         this.blackInfo = document.getElementById('black-info');
         this.wallControls = document.getElementById('wall-controls');
@@ -43,10 +41,12 @@ class QuoridorUI {
         this.blackScore = document.getElementById('black-score');
         this.whiteTurnIndicator = document.getElementById('white-turn-indicator');
         this.blackTurnIndicator = document.getElementById('black-turn-indicator');
+        this.gameEndModal = document.getElementById('game-end-modal');
+        this.gameEndMessage = document.getElementById('game-end-message');
+        this.modalNewGameBtn = document.getElementById('modal-new-game');
     }
 
     setupEventListeners() {
-        this.wallModeBtn.addEventListener('click', () => this.enterWallPhase());
         this.newGameBtn.addEventListener('click', () => this.startNewGame());
         this.confirmWallBtn.addEventListener('click', () => this.confirmWallPlacement());
         this.cancelWallBtn.addEventListener('click', () => this.cancelWallPlacement());
@@ -56,49 +56,36 @@ class QuoridorUI {
         this.skipMoveBtn.addEventListener('click', () => this.skipMovePhase());
         this.endTurnBtn.addEventListener('click', () => this.finishTurn());
         this.resetTurnBtn.addEventListener('click', () => this.resetTurn());
+        if (this.modalNewGameBtn) {
+            this.modalNewGameBtn.addEventListener('click', () => this.startNewGame());
+        }
     }
 
     updatePhaseBanner() {
         this.phaseBanner.style.display = 'block';
-        if (this.phase === 'move') {
+        if (this.game.phase === 'move') {
             this.phaseBanner.textContent = 'Move Phase: Select a space to move your pawn or skip.';
             this.phaseBanner.className = 'phase-banner move';
-        } else if (this.phase === 'wall') {
+        } else if (this.game.phase === 'wall') {
             this.phaseBanner.textContent = 'Wall Phase: Place a wall, skip, or cancel.';
             this.phaseBanner.className = 'phase-banner wall';
-        } else if (this.phase === 'review') {
+        } else if (this.game.phase === 'review') {
             this.phaseBanner.textContent = 'Review Phase: End turn or reset your actions.';
             this.phaseBanner.className = 'phase-banner move';
         }
     }
 
-    enterWallPhase() {
-        if (this.phase !== 'move') return;
-        this.phase = 'wall';
-        this.wallStart = null;
-        this.wallEnd = null;
-        this.moveTarget = null;
-        this.wallControls.style.display = 'none';
-        this.moveControls.style.display = 'none';
-        this.reviewControls.style.display = 'none';
-        this.turnControls.style.display = 'none';
-        this.updatePhaseBanner();
-        this.renderBoard();
-    }
-
     startNewGame() {
         this.game.reset();
-        this.phase = 'move';
         this.wallStart = null;
         this.wallEnd = null;
         this.moveTarget = null;
-        this.originalPawnPos = null;
         this.originalState = null;
+        this.gameOver = false;
+        if (this.gameEndModal) this.gameEndModal.style.display = 'none';
         this.wallControls.style.display = 'none';
         this.moveControls.style.display = 'none';
         this.reviewControls.style.display = 'none';
-        this.wallModeBtn.textContent = 'Place Wall';
-        this.wallModeBtn.style.background = '#8B4513';
         this.renderBoard();
         this.updateGameInfo();
         this.updatePhaseBanner();
@@ -113,14 +100,41 @@ class QuoridorUI {
                 this.board.appendChild(cell);
             }
         }
+        // Draw wall overlays for all placed walls (only once per wall)
+        for (let row = 0; row < 17; row++) {
+            for (let col = 0; col < 17; col++) {
+                const cell = this.game.board[row][col];
+                if (cell.occupiedBy === 'wall') {
+                    const orientation = this.game.determineWallOrientation(row, col);
+                    // Only draw overlay for the wall's starting endpoint
+                    if (orientation === 'v') {
+                        // Only draw if the slot below is also a wall (vertical wall start)
+                        if (row % 2 === 0 && row < 16 && this.game.board[row + 2][col].occupiedBy === 'wall') {
+                            // Avoid drawing twice: only draw if above is not a wall
+                            if (row === 0 || this.game.board[row - 2][col].occupiedBy !== 'wall') {
+                                this.drawWallOverlay([row, col], [row + 2, col], 'vertical');
+                            }
+                        }
+                    } else if (orientation === 'h') {
+                        // Only draw if the slot to the right is also a wall (horizontal wall start)
+                        if (col % 2 === 0 && col < 16 && this.game.board[row][col + 2].occupiedBy === 'wall') {
+                            // Avoid drawing twice: only draw if left is not a wall
+                            if (col === 0 || this.game.board[row][col - 2].occupiedBy !== 'wall') {
+                                this.drawWallOverlay([row, col], [row, col + 2], 'horizontal');
+                            }
+                        }
+                    }
+                }
+            }
+        }
         // Draw wall preview if needed
         if (this.wallStart && this.wallEnd) {
             this.drawWallPreview(this.wallStart, this.wallEnd);
         }
         // Show only relevant controls
-        this.moveControls.style.display = this.phase === 'move' ? 'block' : 'none';
-        this.wallControls.style.display = this.phase === 'wall' ? 'block' : 'none';
-        this.reviewControls.style.display = this.phase === 'review' ? 'block' : 'none';
+        this.moveControls.style.display = this.game.phase === 'move' ? 'block' : 'none';
+        this.wallControls.style.display = this.game.phase === 'wall' ? 'block' : 'none';
+        this.reviewControls.style.display = this.game.phase === 'review' ? 'block' : 'none';
     }
 
     createCell(row, col) {
@@ -135,6 +149,10 @@ class QuoridorUI {
         }
         if (this.wallEnd && this.wallEnd[0] === row && this.wallEnd[1] === col) {
             cell.classList.add('selected-slot');
+        }
+        // Highlight valid adjacent slots for second endpoint
+        if (this.wallStart && !this.wallEnd && this.isAdjacentWallSlot(this.wallStart, [row, col])) {
+            cell.classList.add('valid-slot');
         }
         // Highlight move preview
         if (this.moveTarget && this.moveTarget[0] === row && this.moveTarget[1] === col) {
@@ -180,94 +198,107 @@ class QuoridorUI {
     }
 
     handleCellClick(row, col) {
-        if (this.phase === 'move') {
+        if (this.gameOver) return;
+        if (this.game.phase === 'move') {
             this.handleMoveSelection(row, col);
-        } else if (this.phase === 'wall') {
+        } else if (this.game.phase === 'wall') {
             this.handleWallSelection(row, col);
         }
     }
 
     handleMoveSelection(row, col) {
-        // Only allow space selection
-        const type = this.game.board[row][col].type;
-        if (type !== 'space') return;
-        if (this.game.board[row][col].occupiedBy) return;
-        const currentPos = this.game.turn === 'white' ? this.game.whitePos : this.game.blackPos;
-        const action = this.game.movePawn([row, col]);
-        if (!action.success) {
-            this.showMessage(action.message, 'error');
+        if (this.gameOver) return;
+        if (this.game.phase !== 'move') {
+            this.showMessage('You can only move during the Move phase.', 'error');
             return;
         }
-        // Store the original state for reset turn
+        const type = this.game.board[row][col].type;
+        if (type !== 'space') {
+            this.showMessage('You must select an empty space to move.', 'error');
+            return;
+        }
+        if (this.game.board[row][col].occupiedBy) {
+            this.showMessage('That space is already occupied.', 'error');
+            return;
+        }
         if (!this.originalState) this.originalState = this.game.getState();
-        this.originalPawnPos = [...currentPos];
+        const result = this.game.handleTurn('move', { destination: [row, col] });
+        if (!result.success) {
+            this.showMessage(result.message, 'error');
+            return;
+        }
         this.moveTarget = [row, col];
         this.renderBoard();
+        this.updatePhaseBanner();
+        this.updateGameInfo();
+        this.showMessage('Move successful! Now you may place a wall, skip, or cancel.', 'success');
     }
 
     confirmMove() {
+        if (this.gameOver) return;
         if (!this.moveTarget) return;
-        this.animatePawn(this.moveTarget);
+        // Animate pawn if needed
         this.moveTarget = null;
-        this.originalPawnPos = null;
-        this.phase = 'wall';
+        this.renderBoard();
         this.updatePhaseBanner();
-        this.renderBoard();
         this.updateGameInfo();
-        this.showMessage('Now you may place a wall, skip, or cancel.', 'success');
-    }
-
-    cancelMove() {
-        if (this.originalPawnPos && this.moveTarget) {
-            const color = this.game.turn === 'white' ? 'white' : 'black';
-            const [oldRow, oldCol] = this.moveTarget;
-            const [origRow, origCol] = this.originalPawnPos;
-            this.game.board[oldRow][oldCol].occupiedBy = null;
-            this.game.board[origRow][origCol].occupiedBy = color;
-            if (color === 'white') this.game.whitePos = [origRow, origCol];
-            if (color === 'black') this.game.blackPos = [origRow, origCol];
-        }
-        this.moveTarget = null;
-        this.originalPawnPos = null;
-        this.renderBoard();
     }
 
     skipMovePhase() {
+        if (this.gameOver) return;
+        if (this.game.phase !== 'move') {
+            this.showMessage('You can only skip during the Move phase.', 'error');
+            return;
+        }
         if (!this.originalState) this.originalState = this.game.getState();
+        const result = this.game.handleTurn('skip');
         this.moveTarget = null;
-        this.originalPawnPos = null;
-        this.phase = 'wall';
-        this.updatePhaseBanner();
         this.renderBoard();
-        this.showMessage('Move skipped. Now you may place a wall, skip, or cancel.', 'success');
+        this.updatePhaseBanner();
+        this.updateGameInfo();
+        this.showMessage(result.success ? 'Move skipped. Now you may place a wall, skip, or cancel.' : result.message, result.success ? 'info' : 'error');
     }
 
     handleWallSelection(row, col) {
+        if (this.gameOver) return;
+        if (this.game.phase !== 'wall') {
+            this.showMessage('You can only select wall slots during the Wall phase.', 'error');
+            return;
+        }
         const type = this.game.board[row][col].type;
-        if (type !== 'v-slot' && type !== 'h-slot') return;
+        if (type !== 'v-slot' && type !== 'h-slot') {
+            this.showMessage('Select a valid wall slot.', 'error');
+            return;
+        }
         if (!this.wallStart) {
             this.wallStart = [row, col];
             this.wallEnd = null;
             this.renderBoard();
+            this.showMessage('Now select an adjacent slot to complete the wall.', 'info');
         } else if (!this.wallEnd && this.isAdjacentWallSlot(this.wallStart, [row, col])) {
             this.wallEnd = [row, col];
             this.renderBoard();
+            this.showMessage('Click Confirm to place the wall.', 'info');
         } else {
-            this.wallStart = [row, col];
-            this.wallEnd = null;
-            this.renderBoard();
+            this.showMessage('Invalid wall endpoint. Please select an adjacent slot.', 'error');
         }
     }
 
     confirmWallPlacement() {
-        if (!this.wallStart || !this.wallEnd) return;
-        const result = this.game.placeWallEndpoints(this.wallStart, this.wallEnd);
+        if (this.gameOver) return;
+        if (this.game.phase !== 'wall') {
+            this.showMessage('You can only place a wall during the Wall phase.', 'error');
+            return;
+        }
+        if (!this.wallStart || !this.wallEnd) {
+            this.showMessage('Select two adjacent wall slots to place a wall.', 'error');
+            return;
+        }
+        const result = this.game.handleTurn('wall', { start: this.wallStart, end: this.wallEnd });
         if (result.success) {
-            this.showMessage(result.message, 'success');
+            this.showMessage('Wall placed! Review your turn or end turn.', 'success');
             this.wallStart = null;
             this.wallEnd = null;
-            this.phase = 'review';
-            this.wallPlacedThisTurn = true;
             this.updatePhaseBanner();
             this.renderBoard();
             this.updateGameInfo();
@@ -275,8 +306,9 @@ class QuoridorUI {
             if (gameWon.win) {
                 this.scores[gameWon.winner]++;
                 this.updateScoreboard();
-                this.showMessage(`${gameWon.winner} player wins!`, 'success');
-                setTimeout(() => this.startNewGame(), 2000);
+                this.showGameEndModal(`${gameWon.winner.charAt(0).toUpperCase() + gameWon.winner.slice(1)} wins! 🎉`);
+                this.gameOver = true;
+                return;
             }
         } else {
             this.showMessage(result.message, 'error');
@@ -290,54 +322,56 @@ class QuoridorUI {
     }
 
     skipWallPhase() {
+        if (this.gameOver) return;
+        if (this.game.phase !== 'wall') {
+            this.showMessage('You can only skip during the Wall phase.', 'error');
+            return;
+        }
+        const result = this.game.handleTurn('skip');
         this.wallStart = null;
         this.wallEnd = null;
-        this.phase = 'review';
-        this.wallPlacedThisTurn = false;
-        this.updatePhaseBanner();
         this.renderBoard();
-        this.showMessage('Wall phase skipped. Review your turn or end turn.', 'success');
+        this.updatePhaseBanner();
+        this.updateGameInfo();
+        this.showMessage(result.success ? 'Wall phase skipped. Review your turn or end turn.' : result.message, result.success ? 'info' : 'error');
     }
 
     finishTurn() {
-        this.game.finalizeTurn(this.wallPlacedThisTurn);
-        this.phase = 'move';
+        if (this.gameOver) return;
+        if (this.game.phase !== 'review') {
+            this.showMessage('You can only end your turn during the Review phase.', 'error');
+            return;
+        }
+        const result = this.game.handleTurn('end');
         this.wallStart = null;
         this.wallEnd = null;
         this.moveTarget = null;
-        this.originalPawnPos = null;
         this.originalState = null;
-        this.wallPlacedThisTurn = false;
-        this.updatePhaseBanner();
         this.renderBoard();
+        this.updatePhaseBanner();
         this.updateGameInfo();
+        this.showMessage(result.success ? "Turn ended. Next player's move phase begins." : result.message, result.success ? 'success' : 'error');
     }
 
     resetTurn() {
-        if (this.originalState) {
-            // Restore the full game state
-            this.restoreState(this.originalState);
+        if (this.gameOver) return;
+        if (this.game.phase !== 'review') {
+            this.showMessage('You can only reset your turn during the Review phase.', 'error');
+            return;
         }
-        this.phase = 'move';
+        if (!this.originalState) {
+            this.showMessage('No actions to reset this turn.', 'error');
+            return;
+        }
+        this.game.restoreState(this.originalState);
+        this.game.phase = 'move';
         this.wallStart = null;
         this.wallEnd = null;
         this.moveTarget = null;
-        this.originalPawnPos = null;
-        this.updatePhaseBanner();
         this.renderBoard();
+        this.updatePhaseBanner();
         this.updateGameInfo();
-        this.showMessage('Turn reset. Start your move again.', 'success');
-    }
-
-    restoreState(state) {
-        this.game.turn = state.turn;
-        this.game.whitePos = [...state.whitePos];
-        this.game.blackPos = [...state.blackPos];
-        this.game.whiteWalls = state.whiteWalls;
-        this.game.blackWalls = state.blackWalls;
-        this.game.whiteWon = state.whiteWon;
-        this.game.blackWon = state.blackWon;
-        this.game.board = state.board.map(row => row.map(cell => ({ ...cell })));
+        this.showMessage('Turn reset. Start your move again.', 'info');
     }
 
     animatePawn(target) {
@@ -364,10 +398,13 @@ class QuoridorUI {
     showMessage(message, type = '') {
         this.messageDiv.textContent = message;
         this.messageDiv.className = type;
-        setTimeout(() => {
+        this.messageLive.textContent = message;
+        clearTimeout(this._msgTimeout);
+        this._msgTimeout = setTimeout(() => {
             this.messageDiv.textContent = '';
             this.messageDiv.className = '';
-        }, 3000);
+            this.messageLive.textContent = '';
+        }, type === 'error' ? 4000 : 2500);
     }
 
     isWinnerPawn(color) {
@@ -412,6 +449,39 @@ class QuoridorUI {
         }
         preview.style.position = 'absolute';
         this.board.appendChild(preview);
+    }
+
+    drawWallOverlay(start, end, orientation) {
+        // Draw a single overlay spanning from start to end
+        const [r1, c1] = start, [r2, c2] = end;
+        const boardRect = this.board.getBoundingClientRect();
+        const cell1 = this.board.querySelector(`[data-row='${r1}'][data-col='${c1}']`);
+        const cell2 = this.board.querySelector(`[data-row='${r2}'][data-col='${c2}']`);
+        if (!cell1 || !cell2) return;
+        const rect1 = cell1.getBoundingClientRect();
+        const rect2 = cell2.getBoundingClientRect();
+        const overlay = document.createElement('div');
+        overlay.className = `wall-overlay ${orientation}`;
+        if (orientation === 'vertical') {
+            overlay.style.width = '18px';
+            overlay.style.height = Math.abs(rect2.top - rect1.top) + rect1.height + 'px';
+            overlay.style.left = (rect1.left - boardRect.left + rect1.width / 2 - 9) + 'px';
+            overlay.style.top = (Math.min(rect1.top, rect2.top) - boardRect.top) + 'px';
+        } else {
+            overlay.style.height = '18px';
+            overlay.style.width = Math.abs(rect2.left - rect1.left) + rect1.width + 'px';
+            overlay.style.top = (rect1.top - boardRect.top + rect1.height / 2 - 9) + 'px';
+            overlay.style.left = (Math.min(rect1.left, rect2.left) - boardRect.left) + 'px';
+        }
+        overlay.style.position = 'absolute';
+        this.board.appendChild(overlay);
+    }
+
+    showGameEndModal(message) {
+        if (this.gameEndModal && this.gameEndMessage) {
+            this.gameEndMessage.textContent = message;
+            this.gameEndModal.style.display = 'flex';
+        }
     }
 }
 

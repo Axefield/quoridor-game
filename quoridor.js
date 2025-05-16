@@ -361,6 +361,122 @@ class Game {
     }
 
     /**
+     * Checks if there's a valid path from a position to the goal row
+     * @param {number[]} startPos - Starting position [row, col]
+     * @param {number} goalRow - The target row (0 for black, 16 for white)
+     * @returns {boolean} True if a path exists
+     */
+    hasValidPath(startPos, goalRow) {
+        const visited = new Set();
+        const queue = [startPos];
+        
+        while (queue.length > 0) {
+            const [row, col] = queue.shift();
+            const posKey = `${row},${col}`;
+            
+            if (visited.has(posKey)) continue;
+            visited.add(posKey);
+            
+            // Check if we reached the goal
+            if (row === goalRow) return true;
+            
+            // Check all possible moves
+            const moves = this.getValidMoves([row, col]);
+            for (const move of moves) {
+                queue.push(move);
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Gets all valid moves from a position
+     * @param {number[]} pos - Current position [row, col]
+     * @returns {Array<number[]>} Array of valid move positions
+     */
+    getValidMoves(pos) {
+        const [row, col] = pos;
+        const moves = [];
+        
+        // Check all four directions
+        const directions = [
+            [row + 2, col], // up
+            [row - 2, col], // down
+            [row, col + 2], // right
+            [row, col - 2]  // left
+        ];
+        
+        for (const [newRow, newCol] of directions) {
+            if (this.isValidMove(pos, [newRow, newCol])) {
+                moves.push([newRow, newCol]);
+            }
+        }
+        
+        return moves;
+    }
+
+    /**
+     * Checks if a move is valid
+     * @param {number[]} currentPos - Current position [row, col]
+     * @param {number[]} destPos - Destination position [row, col]
+     * @returns {boolean} True if move is valid
+     */
+    isValidMove(currentPos, destPos) {
+        if (this.isOutOfBounds(destPos[0], destPos[1])) return false;
+        if (this.isOccupied(destPos[0], destPos[1])) return false;
+        
+        const [row1, col1] = currentPos;
+        const [row2, col2] = destPos;
+        
+        // Check for walls between positions
+        if (row1 === row2) {
+            const wallCol = Math.min(col1, col2) + 1;
+            if (this.board[row1][wallCol].occupiedBy === 'wall') return false;
+        } else {
+            const wallRow = Math.min(row1, row2) + 1;
+            if (this.board[wallRow][col1].occupiedBy === 'wall') return false;
+        }
+        
+        return true;
+    }
+
+    /**
+     * Validates if a wall placement would block any player's path
+     * @param {number} row - Wall row position
+     * @param {number} col - Wall column position
+     * @returns {boolean} True if wall placement is valid
+     */
+    isValidWallPlacement(row, col) {
+        // Temporarily place the wall
+        const orientation = this.determineWallOrientation(row, col);
+        if (!orientation) return false;
+        
+        if (orientation === 'v') {
+            this.board[row][col].occupiedBy = 'wall';
+            this.board[row + 2][col].occupiedBy = 'wall';
+        } else {
+            this.board[row][col].occupiedBy = 'wall';
+            this.board[row][col + 2].occupiedBy = 'wall';
+        }
+        
+        // Check if both players still have valid paths
+        const whiteHasPath = this.hasValidPath(this.whitePos, 16);
+        const blackHasPath = this.hasValidPath(this.blackPos, 0);
+        
+        // Remove the temporary wall
+        if (orientation === 'v') {
+            this.board[row][col].occupiedBy = null;
+            this.board[row + 2][col].occupiedBy = null;
+        } else {
+            this.board[row][col].occupiedBy = null;
+            this.board[row][col + 2].occupiedBy = null;
+        }
+        
+        return whiteHasPath && blackHasPath;
+    }
+
+    /**
      * Attempts to place a wall at the specified board location.
      * @param {number} row - The row index.
      * @param {number} col - The column index.
@@ -391,6 +507,12 @@ class Game {
                     success: false,
                     message: `Wall too close to board boundary`,
                 };
+            if (!this.isValidWallPlacement(row, col)) {
+                return {
+                    success: false,
+                    message: `Wall placement would block a player's path`,
+                };
+            }
             this.board[row][col].occupiedBy = "wall";
             this.board[row + 2][col].occupiedBy = "wall";
             this.manageTurnWalls();
@@ -402,6 +524,12 @@ class Game {
                     success: false,
                     message: `Wall too close to board boundary`,
                 };
+            if (!this.isValidWallPlacement(row, col)) {
+                return {
+                    success: false,
+                    message: `Wall placement would block a player's path`,
+                };
+            }
             this.board[row][col].occupiedBy = "wall";
             this.board[row][col + 2].occupiedBy = "wall";
             this.manageTurnWalls();
@@ -415,4 +543,9 @@ class Game {
         }
     }
 }
-module.exports = Game;
+
+if (typeof window !== 'undefined') {
+    window.Game = Game;
+} else if (typeof module !== 'undefined' && module.exports) {
+    module.exports = Game;
+}

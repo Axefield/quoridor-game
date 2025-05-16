@@ -1,37 +1,88 @@
-# Quoridor Game
+# Quoridor 3D: Real-Time Arena Design Doc
 
-A fullstack implementation of the board game **Quoridor**, built to deepen knowledge and practice in both backend and frontend web development.
+## Overview
+Quoridor 3D Arena is a real-time, action-strategy reimagining of the classic Quoridor board game. Players control pawns on a 3D grid, dashing between cells and "shooting" walls to block or trap their opponent. The game is rendered in 3D using [three.js](https://threejs.org/), with fast-paced movement, wall placement, and tactical play.
 
-## Features
+---
 
-- **Modern, Animated UI**: Responsive, mobile-friendly design with smooth animations for pawn movement, wall placement, and winning.
-- **Interactive Board**: Click to preview moves and wall placements before confirming. Walls are placed by selecting two endpoints and confirming.
-- **User-Friendly Controls**: Move and wall placement require confirmation. "Finish Turn" button for clarity. All controls are context-aware.
-- **Scoreboard**: Tracks the number of games won by each player.
-- **Current Player Indicator**: Prominent highlight and pulsing badge for the active player.
-- **Instructions Card**: Built-in rules and tips for new players.
-- **Pathfinding Logic**: Ensures no player can be completely blocked by walls.
-- **Validation & Feedback**: All actions are validated and provide clear user feedback.
+## Core Concepts
+- **3D Grid Arena:** The board is a 3D grid (e.g., 9x9x1 or 9x9x3 for multi-layered play).
+- **Pawns:** Each player controls a pawn that can dash to adjacent cells.
+- **Walls:** Players can "shoot" (place) walls in real time to block paths. Walls appear as 3D blocks between cells.
+- **Real-Time Play:** Both players can move and place walls simultaneously, with possible cooldowns or limits.
+- **Objective:** Reach the opponent's starting edge before they reach yours, or trap them so they cannot move.
 
-## Project Goals
+---
 
-This project was created as a learning tool to develop and demonstrate the following:
+## Game Rules & Mechanics
+- **Movement:**
+  - Players move their pawn by dashing to adjacent grid cells (orthogonally or with special moves).
+  - Movement is restricted by walls and the grid boundaries.
+- **Wall Shooting:**
+  - Players can place a wall between two cells by aiming and "shooting" it.
+  - Each player has a limited number of walls (e.g., 10).
+  - Walls cannot fully block all paths to the goal (pathfinding check required).
+  - Wall placement may have a cooldown or energy cost in real-time mode.
+- **Win Condition:**
+  - First player to reach the opposite edge wins.
+  - Optionally, a player wins if the opponent is completely blocked.
+- **Game Modes:**
+  - Real-time (default): Both players act simultaneously.
+  - Turn-based (optional): Classic Quoridor rules in 3D.
 
-- **Test-Driven Development (TDD)**: Emphasis on writing reliable unit tests before implementation.
-- **Continuous Integration & Deployment (CI/CD)**: Structured for scalable and testable builds.
-- **Version Control with Git & GitHub**: Clean commit history and collaborative workflows.
-- **Advanced Logic Programming**: Implementation of move validation, board state tracking, and pawn pathfinding.
-- **State Management**: Managing complex, dynamic game state on the client and server.
-- **Fullstack Development**: Building the game across the stack with custom APIs and client interaction.
-- **Real-Time Features**: Real-time multiplayer using WebSockets and JWT-based authentication. *(Planned)*
+---
 
-## Repository Structure
+## Visual & Technical Design
+- **Engine:** [three.js](https://threejs.org/) for 3D rendering.
+- **Grid:** Rendered as a floating 3D board with clear cell boundaries.
+- **Pawns:** 3D models or stylized shapes, with dash and idle animations.
+- **Walls:** 3D blocks that animate into place when shot.
+- **Camera:** Adjustable 3D camera (orbit, pan, zoom) for full board visibility.
+- **UI:** Overlay for wall count, player status, cooldowns, and win notifications.
+- **Effects:** Particle effects for dashing, wall placement, and win/loss.
 
-- `/client` – Frontend application (UI, state handling, event-driven gameplay)
-- `/server` – Game logic, API routes, websocket integration
-- `/__tests__` – Unit and integration tests for core mechanics
-- `quoridor.js` – Main game logic module
+---
 
-## Status
+## Controls
+- **Movement:** WASD or arrow keys to move/dash.
+- **Wall Placement:** Mouse to aim, click or key to shoot a wall.
+- **Camera:** Mouse drag to orbit, scroll to zoom.
+- **UI:** On-screen buttons for reset, new game, etc.
 
-The game is fully playable locally with a modern, animated UI and robust logic. Core mechanics, user experience, and validation are complete. Real-time multiplayer and advanced features are planned for future updates.
+---
+
+## Multiplayer (Optional)
+- **Networking:** WebSockets (e.g., Socket.io) for real-time sync.
+- **Matchmaking:** Lobby or direct invite.
+- **Spectator Mode:** Watch ongoing games.
+
+---
+
+## Stretch Features
+- Power-ups (e.g., temporary wall immunity, speed boost)
+- Multiple levels/layers (3D mazes)
+- Customizable pawns and arenas
+- AI opponents
+- Mobile/touch controls
+
+---
+
+## Project Structure (Proposed)
+- `/src/` — Main JS/TS code (three.js setup, game logic, UI)
+- `/public/` — Static assets (models, textures, sounds)
+- `/server/` — (Optional) Multiplayer server code
+- `README.md` — This design doc
+
+---
+
+## Getting Started (Planned)
+1. Set up a three.js project and render a 3D grid.
+2. Add pawn models and implement movement.
+3. Implement wall shooting and placement logic.
+4. Add UI overlays and effects.
+5. (Optional) Add multiplayer support.
+
+---
+
+## Credits
+Inspired by the classic board game Quoridor. 3D version and real-time mechanics by [Your Name/Team].

@@ -1,9 +1,11 @@
 {
   "name": "quoridor",
   "version": "1.0.0",
+  "type": "module",
   "main": "quoridor.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "start": "node server.js"
   },
   "repository": {
     "type": "git",
@@ -16,11 +18,12 @@
     "url": "https://github.com/tordener/quoridor-game/issues"
   },
   "homepage": "https://github.com/tordener/quoridor-game#readme",
-  "description": "",
+  "description": "Quoridor 3D Arena is a real-time, action-strategy reimagining of the classic Quoridor board game. Players control pawns on a 3D grid, dashing between cells and \"shooting\" walls to block or trap their opponent. The game is rendered in 3D using [three.js](https://threejs.org/), with fast-paced movement, wall placement, and tactical play.",
   "devDependencies": {
     "jest": "^29.7.0"
   },
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^4.18.2",
+    "three": "^0.176.0"
   }
 }

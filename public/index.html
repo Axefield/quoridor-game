@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quoridor 3D Arena</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #222; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100vw; color: #fff; z-index: 10; padding: 1em; font-family: sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="overlay">
+        <h1>Quoridor 3D Arena</h1>
+        <p>WASD/Arrow keys to move. Mouse to aim/shoot walls. Scroll to zoom. (Prototype)</p>
+        <div id="move-phase-controls" style="display:none;">
+            <button id="reset-move-btn">Reset Move</button>
+            <button id="confirm-move-btn">Confirm Move</button>
+        </div>
+        <div id="wall-phase-controls" style="display:none;">
+            <button id="reset-wall-btn">Reset Wall</button>
+            <button id="confirm-wall-btn">Confirm Wall</button>
+            <button id="return-move-btn">Return to Move Phase</button>
+        </div>
+        <button id="end-move-btn" style="display:none;">End Move</button>
+    </div>
+    <!-- Review/End Turn Modal -->
+    <div id="review-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:2000; align-items:center; justify-content:center;">
+        <div style="background:#fff; color:#222; padding:2em 3em; border-radius:16px; text-align:center; min-width:300px;">
+            <h2>Review Turn</h2>
+            <p>Are you ready to end your turn?</p>
+            <button id="end-turn-btn">End Turn</button>
+            <button id="reset-turn-btn">Reset Turn</button>
+        </div>
+    </div>
+    <script type="module" src="../src/main.js"></script>
+</body>
+</html> 

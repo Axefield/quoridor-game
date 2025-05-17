@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <style>
+        .hide-caret {
+            user-select: none;
+            caret-color: transparent;
+        }
+        @keyframes validSquares {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .3;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+        @keyframes pawnBreathe {
+            0% {
+                width: 75%;
+                height: 75%;
+            }
+            50% {
+                width: 65%;
+                height: 65%;
+                opacity:.7;
+            }
+            100% {
+                width: 75%;
+                height: 75%;
+            }
+        }
+
+        .validSquare {
+            animation-name: validSquares;
+            animation-duration: 3s;
+            animation-fill-mode: forwards;
+            animation-iteration-count: infinite;
+            animation-timing-function: ease-in-out;
+        }
+        .pawnBreathing {
+            animation-name: pawnBreathe;
+            animation-duration: 1s;
+            animation-fill-mode: forwards;
+            animation-iteration-count: infinite;
+            animation-timing-function: ease-in-out;
+        }
+
+    </style>
+    <body class="bg-gray-700 mt-10 mr-1 ml-1">
+        <div id="board-container">
+            <div id="board">
+            </div>
+        </div>
+        <script>
+        function renderGrid(){
+            let target = document.getElementById('board');
+            let rowString = ``;
+            for(let a = 0; a < 17; a++){
+                rowString = ``;
+                if(a % 2 === 0) {
+                    for(let b = 0; b < 17; b++){
+                        if(b === 0) rowString += `<div class="flex items-center hide-caret justify-center bg-transparent">`;
+                            if(b % 2 === 0) rowString += `<div id="${a},${b}" class="bg-gray-600 w-10 h-10 hover:bg-red-400"></div>`;
+                            if(b % 2 === 1) rowString += `<div id="${a},${b}" class="bg-gray-700 w-2 h-10 hover:bg-yellow-400"></div>`;
+                        }
+                        rowString += `</div>`;
+                    }
+                    if(a % 2 === 1){
+                        for(let c = 0; c < 17; c++){
+                            if(c === 0) rowString += `<div class="flex items-center hide-caret justify-center bg-transparent">`;
+                                if(c % 2 === 0) rowString += `<div id="${a},${c}" class="bg-gray-700 h-2 w-10 hover:bg-yellow-400"></div>`;
+                                if(c % 2 === 1) rowString += `<div id="${a},${c}" class="bg-gray-700 h-2 w-2"></div>`;
+                            }
+                            rowString += `</div>`;
+                        }
+                        target.innerHTML += rowString;
+                    }
+        }
+                
+        function renderBoard(){
+            function validSquare(cellRow, cellCol){
+                let cell = document.getElementById(`${cellRow},${cellCol}`);
+                cell.classList.remove('hover:bg-red-400');
+                cell.classList.add('hover:bg-green-300');
+            }
+            function invalidSquare(cellRow, cellCol){
+                let cell = document.getElementById(`${cellRow},${cellCol}`);
+                cell.classList.remove('hover:bg-gray-200');
+                cell.classList.add('hover:bg-red-400');
+            }
+            function addPawnClasses(cellRow, cellCol){
+                let cell = document.getElementById(`${cellRow},${cellCol}`);
+                cell.classList.add(...occupiedPawnCellClasses);
+            }
+            function removePawnClasses(cellRow, cellCol){
+                let cell = document.getElementById(`${cellRow},${cellCol}`);
+                cell.classList.remove(...occupiedPawnCellClasses);
+            }
+            function addPawnToCell(cellRow, cellCol, pawnColor){
+                let cell = document.getElementById(`${cellRow},${cellCol}`);
+                addPawnClasses(cellRow,cellCol);
+                if(pawnColor === 'w') cell.innerHTML += whitePawn;
+                if(pawnColor === 'b') cell.innerHTML += blackPawn;
+            }
+            renderGrid();
+            const blackPawn = `<div class="h-6 w-6 bg-gray-800 rounded-full"></div>`;
+            const whitePawn = `<div class="h-6 w-6 bg-white rounded-full pawnBreathing"></div>`;
+            const occupiedPawnCellClasses = ['flex','items-center','justify-center'];
+            let topLeftCorner = document.getElementById('0,0');
+            let topRightCorner = document.getElementById('0,16');
+            let bottomLeftCorner = document.getElementById('16,0');
+            let bottomRightCorner = document.getElementById('16,16');
+            topLeftCorner.classList.add('rounded-tl-xl');
+            topRightCorner.classList.add('rounded-tr-xl');
+            bottomLeftCorner.classList.add('rounded-bl-xl');
+            bottomRightCorner.classList.add('rounded-br-xl');
+            addPawnToCell(0,8, 'w');
+            addPawnToCell(16,8, 'b');
+            validSquare(0,6);
+            validSquare(0,10);
+            validSquare(2,8);
+            highlightSquare(0,0);
+            addPawnToCell(0,2, 'w');
+        }
+        renderBoard();
+        </script>
+    </body>
+</html>

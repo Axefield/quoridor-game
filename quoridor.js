@@ -1,7 +1,7 @@
 /**
  * Represents a game of Quoridor.
  */
-class Game {
+export class Game {
     /**
      * Initializes a new game instance.
      */

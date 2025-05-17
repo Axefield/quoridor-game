@@ -1,288 +1,455 @@
 export default class Game3D {
-    constructor(gridSize = 9) {
-        this.gridSize = gridSize;
+    constructor() {
         this.reset();
     }
 
     reset() {
-        this.board = this.createBoard(); // 2D array for pawn/wall state
-        this.whitePos = { x: Math.floor(this.gridSize / 2), z: this.gridSize - 1 };
-        this.blackPos = { x: Math.floor(this.gridSize / 2), z: 0 };
+        this.turn = "white";
+        this.phase = "move"; // 'move', 'wall', 'review'
+        this.whitePos = [0, 8];
+        this.blackPos = [16, 8];
         this.whiteWalls = 10;
         this.blackWalls = 10;
-        this.turn = 'white'; // 'white' or 'black'
-        this.phase = 'move'; // 'move', 'wall', 'review'
-        this.winner = null;
-        this.walls = []; // {x, z, orientation: 'h'|'v'}
+        this.whiteWon = false;
+        this.blackWon = false;
+        this.board = this.initializeBoard();
+        this.lastAction = null;
     }
 
-    createBoard() {
-        // Each cell: { pawn: null|'white'|'black', wall: null|'h'|'v' }
-        const board = [];
-        for (let x = 0; x < this.gridSize; x++) {
-            board[x] = [];
-            for (let z = 0; z < this.gridSize; z++) {
-                board[x][z] = { pawn: null, wall: null };
+    initializeBoard() {
+        let board = [];
+        for (let row = 0; row < 17; row++) {
+            let currentRow = [];
+            for (let col = 0; col < 17; col++) {
+                if (row % 2 === 0 && col % 2 === 0) {
+                    currentRow.push({ type: "space", occupiedBy: null });
+                }
+                if (row % 2 === 0 && col % 2 === 1) {
+                    currentRow.push({ type: "v-slot", occupiedBy: null });
+                }
+                if (row % 2 === 1 && col % 2 === 0) {
+                    currentRow.push({ type: "h-slot", occupiedBy: null });
+                }
+                if (row % 2 === 1 && col % 2 === 1) {
+                    currentRow.push({ type: null, occupiedBy: null });
+                }
             }
+            board.push(currentRow);
         }
+        board[this.whitePos[0]][this.whitePos[1]].occupiedBy = "white";
+        board[this.blackPos[0]][this.blackPos[1]].occupiedBy = "black";
         return board;
     }
 
-    isValidMove(pos, dx, dz) {
-        const nx = pos.x + dx;
-        const nz = pos.z + dz;
-        if (nx < 0 || nx >= this.gridSize || nz < 0 || nz >= this.gridSize) return false;
-        // Prevent moving onto the other pawn
-        const other = this.turn === 'white' ? this.blackPos : this.whitePos;
-        // --- Pawn jump logic ---
-        if (nx === other.x && nz === other.z) {
-            // Try to jump over the pawn
-            const jx = nx + dx;
-            const jz = nz + dz;
-            if (jx >= 0 && jx < this.gridSize && jz >= 0 && jz < this.gridSize && !this.isBlocked(nx, nz, jx, jz) && !this.isBlocked(pos.x, pos.z, nx, nz)) {
-                // Direct jump
-                if (!(jx === pos.x && jz === pos.z)) return true;
-            } else {
-                // Diagonal jump if blocked
-                const diagDirs = dx !== 0 ? [ [0, 1], [0, -1] ] : [ [1, 0], [-1, 0] ];
-                for (const [ddx, ddz] of diagDirs) {
-                    const dx2 = nx + ddx;
-                    const dz2 = nz + ddz;
-                    if (dx2 >= 0 && dx2 < this.gridSize && dz2 >= 0 && dz2 < this.gridSize && !this.isBlocked(nx, nz, dx2, dz2) && !this.isBlocked(pos.x, pos.z, nx, nz)) {
-                        if (!(dx2 === pos.x && dz2 === pos.z) && dx2 === nx + ddx && dz2 === nz + ddz) return true;
-                    }
-                }
-            }
-            return false;
-        }
-        // Normal adjacent move (not onto other pawn)
-        if (Math.abs(dx) + Math.abs(dz) !== 1) return false;
-        if (this.isBlocked(pos.x, pos.z, nx, nz)) return false;
-        return true;
-    }
-
-    isBlocked(x1, z1, x2, z2) {
-        // Check if a wall blocks movement from (x1,z1) to (x2,z2)
-        for (const wall of this.walls) {
-            if (wall.orientation === 'h') {
-                // Horizontal wall blocks movement between (x, z) <-> (x, z+1) if z == wall.z and x in [wall.x, wall.x+1]
-                if ((z1 === wall.z && z2 === wall.z + 1 || z2 === wall.z && z1 === wall.z + 1) && (x1 === wall.x || x1 === wall.x + 1) && (x2 === wall.x || x2 === wall.x + 1)) {
-                    return true;
-                }
-            } else if (wall.orientation === 'v') {
-                // Vertical wall blocks movement between (x, z) <-> (x+1, z) if x == wall.x and z in [wall.z, wall.z+1]
-                if ((x1 === wall.x && x2 === wall.x + 1 || x2 === wall.x && x1 === wall.x + 1) && (z1 === wall.z || z1 === wall.z + 1) && (z2 === wall.z || z2 === wall.z + 1)) {
-                    return true;
-                }
-            }
-        }
+    determineWallOrientation(row, col) {
+        if (row % 2 === 0 && col % 2 === 1) return "v";
+        if (row % 2 === 1 && col % 2 === 0) return "h";
         return false;
     }
 
-    movePawn(dx, dz) {
-        if (this.winner) return false;
-        const pos = this.turn === 'white' ? this.whitePos : this.blackPos;
-        if (!this.isValidMove(pos, dx, dz)) {
-            console.warn(`[movePawn] Illegal move attempted by ${this.turn}: (${pos.x},${pos.z}) + (${dx},${dz})`);
-            return false;
-        }
-        pos.x += dx;
-        pos.z += dz;
-        console.log(`[movePawn] ${this.turn} moved to (${pos.x},${pos.z})`);
-        if (this.checkWin()) {
-            this.winner = this.turn;
-        }
-        return true;
+    isOutOfBounds(row, col) {
+        return row < 0 || row > 16 || col < 0 || col > 16;
     }
 
-    checkWin() {
-        // White wins if reaches z==0, black wins if reaches z==gridSize-1
-        if (this.whitePos.z === 0) return 'white';
-        if (this.blackPos.z === this.gridSize - 1) return 'black';
-        return null;
+    isOccupied(row, col) {
+        return this.board[row][col].occupiedBy != null;
     }
 
-    // Place a wall between (x, z) and (x+1, z) or (x, z+1)
-    placeWall(x, z, orientation) {
-        if (this.winner) return false;
-        if (this.turn === 'white' && this.whiteWalls <= 0) return false;
-        if (this.turn === 'black' && this.blackWalls <= 0) return false;
-        if (orientation === 'h' && (x < 0 || x >= this.gridSize - 1 || z < 0 || z >= this.gridSize - 1)) return false;
-        if (orientation === 'v' && (x < 0 || x >= this.gridSize - 1 || z < 0 || z >= this.gridSize - 1)) return false;
-        // Prevent overlap
-        for (const wall of this.walls) {
-            if (wall.x === x && wall.z === z && wall.orientation === orientation) return false;
-            // Prevent intersection
-            if (orientation === 'h' && wall.orientation === 'h' && wall.z === z && Math.abs(wall.x - x) === 1) return false;
-            if (orientation === 'v' && wall.orientation === 'v' && wall.x === x && Math.abs(wall.z - z) === 1) return false;
-            // Prevent crossing
-            if (orientation !== wall.orientation && wall.x === x && wall.z === z) return false;
-        }
-        // Simulate wall placement for pathfinding check
-        this.walls.push({ x, z, orientation });
-        const whiteHasPath = this.hasPath(this.whitePos, 0); // white must reach z==0
-        const blackHasPath = this.hasPath(this.blackPos, this.gridSize - 1); // black must reach z==gridSize-1
-        if (!whiteHasPath || !blackHasPath) {
-            this.walls.pop();
-            return false;
-        }
-        // Actually place wall
-        if (this.turn === 'white') this.whiteWalls--;
-        if (this.turn === 'black') this.blackWalls--;
-        console.log(`[placeWall] ${this.turn} placed ${orientation} wall at (${x},${z})`);
-        return true;
+    verifyRange(currentPos, destPos) {
+        let differenceRow = Math.abs(currentPos[0] - destPos[0]);
+        let differenceCol = Math.abs(currentPos[1] - destPos[1]);
+        return (
+            (differenceRow === 2 && differenceCol === 0) ||
+            (differenceRow === 0 && differenceCol === 2)
+        );
     }
 
-    // BFS to check if a pawn has a path to its goal row
-    hasPath(start, goalZ) {
-        const visited = Array.from({ length: this.gridSize }, () => Array(this.gridSize).fill(false));
-        const queue = [[start.x, start.z]];
+    gameWon() {
+        let won = { win: false, winner: null };
+        if (this.turn === "black") {
+            for (let a = 0; a < 17; a++) {
+                if (this.board[16][a].occupiedBy === "white")
+                    won = { win: true, winner: "white" };
+            }
+        }
+        if (this.turn === "white") {
+            for (let a = 0; a < 17; a++) {
+                if (this.board[0][a].occupiedBy === "black")
+                    won = { win: true, winner: "black" };
+            }
+        }
+        return won;
+    }
+
+    movePawn(destination) {
+        const currentPos = this.turn === "white" ? this.whitePos : this.blackPos;
+        
+        if (!this.verifyRange(currentPos, destination)) {
+            return { success: false, message: "Invalid move range" };
+        }
+
+        if (this.isOutOfBounds(destination[0], destination[1])) {
+            return { success: false, message: "Destination out of bounds" };
+        }
+
+        if (this.isOccupied(destination[0], destination[1])) {
+            const jumpResult = this.jumpOverPawn(currentPos, destination);
+            if (!jumpResult.success) {
+                return jumpResult;
+            }
+            destination = jumpResult.destination;
+        }
+
+        const direction = this.directionOfTravel(currentPos, destination);
+        if (this.checkForWall(currentPos, direction)) {
+            return { success: false, message: "Blocked by wall" };
+        }
+
+        // Update board state
+        this.board[currentPos[0]][currentPos[1]].occupiedBy = null;
+        this.board[destination[0]][destination[1]].occupiedBy = this.turn;
+
+        // Update pawn position
+        if (this.turn === "white") {
+            this.whitePos = destination;
+        } else {
+            this.blackPos = destination;
+        }
+
+        // Check for win
+        const winCheck = this.gameWon();
+        if (winCheck.win) {
+            if (winCheck.winner === "white") this.whiteWon = true;
+            else this.blackWon = true;
+        }
+
+        return { success: true, message: "Move successful" };
+    }
+
+    directionOfTravel(currentPos, destPos) {
+        let differenceRow = currentPos[0] - destPos[0];
+        let differenceCol = currentPos[1] - destPos[1];
+        if (differenceRow < 0) return "up";
+        if (differenceRow > 0) return "down";
+        if (differenceCol > 0) return "left";
+        if (differenceCol < 0) return "right";
+    }
+
+    checkForWall(pos, direction) {
+        const [row, col] = pos;
+        switch (direction) {
+            case "up":
+                return this.board[row + 1][col].occupiedBy === "wall";
+            case "down":
+                return this.board[row - 1][col].occupiedBy === "wall";
+            case "left":
+                return this.board[row][col - 1].occupiedBy === "wall";
+            case "right":
+                return this.board[row][col + 1].occupiedBy === "wall";
+        }
+    }
+
+    jumpOverPawn(currentPos, destPos) {
+        const direction = this.directionOfTravel(currentPos, destPos);
+        const otherPos = this.turn === "white" ? this.blackPos : this.whitePos;
+        
+        if (this.hopsOffBoard(currentPos, direction)) {
+            return { success: false, message: "Not enough space for jump" };
+        }
+
+        let jumpDest;
+        switch (direction) {
+            case "up":
+                if (this.checkForWall(currentPos, "up") || this.checkForWall([currentPos[0] + 2, currentPos[1]], "up")) {
+                    return { success: false, message: "Blocked by wall" };
+                }
+                jumpDest = [currentPos[0] + 4, currentPos[1]];
+                break;
+            case "down":
+                if (this.checkForWall(currentPos, "down") || this.checkForWall([currentPos[0] - 2, currentPos[1]], "down")) {
+                    return { success: false, message: "Blocked by wall" };
+                }
+                jumpDest = [currentPos[0] - 4, currentPos[1]];
+                break;
+            case "left":
+                if (this.checkForWall(currentPos, "left") || this.checkForWall([currentPos[0], currentPos[1] - 2], "left")) {
+                    return { success: false, message: "Blocked by wall" };
+                }
+                jumpDest = [currentPos[0], currentPos[1] - 4];
+                break;
+            case "right":
+                if (this.checkForWall(currentPos, "right") || this.checkForWall([currentPos[0], currentPos[1] + 2], "right")) {
+                    return { success: false, message: "Blocked by wall" };
+                }
+                jumpDest = [currentPos[0], currentPos[1] + 4];
+                break;
+        }
+
+        return { success: true, destination: jumpDest };
+    }
+
+    hopsOffBoard(pos, direction) {
+        const [row, col] = pos;
+        switch (direction) {
+            case "up": return row > 12;
+            case "down": return row < 3;
+            case "left": return col < 4;
+            case "right": return col > 12;
+        }
+    }
+
+    placeWall(row, col) {
+        const orientation = this.determineWallOrientation(row, col);
+        if (!orientation) {
+            return { success: false, message: "Invalid wall placement" };
+        }
+
+        // BOUNDS CHECK
+        if (orientation === 'v' && (row + 2 > 16)) {
+            return { success: false, message: "Wall too close to board edge" };
+        }
+        if (orientation === 'h' && (col + 2 > 16)) {
+            return { success: false, message: "Wall too close to board edge" };
+        }
+
+        if (this.isOccupied(row, col)) {
+            return { success: false, message: "Space already occupied" };
+        }
+
+        if ((this.turn === "white" && this.whiteWalls <= 0) || 
+            (this.turn === "black" && this.blackWalls <= 0)) {
+            return { success: false, message: "No walls remaining" };
+        }
+
+        // Check if wall placement would block all paths
+        if (!this.isValidWallPlacement(row, col)) {
+            return { success: false, message: "Wall would block all paths" };
+        }
+
+        // Place the wall
+        this.board[row][col].occupiedBy = "wall";
+        if (orientation === "v") {
+            this.board[row + 2][col].occupiedBy = "wall";
+        } else {
+            this.board[row][col + 2].occupiedBy = "wall";
+        }
+
+        // Update wall count
+        if (this.turn === "white") {
+            this.whiteWalls--;
+        } else {
+            this.blackWalls--;
+        }
+
+        return { success: true, message: "Wall placed successfully" };
+    }
+
+    isValidWallPlacement(row, col) {
+        const orientation = this.determineWallOrientation(row, col);
+        if (!orientation) return false;
+
+        // BOUNDS CHECK
+        if (orientation === 'v' && (row + 2 > 16)) return false;
+        if (orientation === 'h' && (col + 2 > 16)) return false;
+
+        // Temporarily place the wall
+        this.board[row][col].occupiedBy = "wall";
+        if (orientation === "v") {
+            this.board[row + 2][col].occupiedBy = "wall";
+        } else {
+            this.board[row][col + 2].occupiedBy = "wall";
+        }
+
+        // Check if both players still have valid paths
+        const whiteHasPath = this.hasValidPath(this.whitePos, 0);
+        const blackHasPath = this.hasValidPath(this.blackPos, 16);
+
+        // Remove the temporary wall
+        this.board[row][col].occupiedBy = null;
+        if (orientation === "v") {
+            this.board[row + 2][col].occupiedBy = null;
+        } else {
+            this.board[row][col + 2].occupiedBy = null;
+        }
+
+        return whiteHasPath && blackHasPath;
+    }
+
+    hasValidPath(startPos, goalRow) {
+        const visited = new Set();
+        const queue = [startPos];
+        
         while (queue.length > 0) {
-            const [x, z] = queue.shift();
-            if (z === goalZ) return true;
-            if (visited[x][z]) continue;
-            visited[x][z] = true;
-            // Try all 4 directions
-            const dirs = [
-                [0, 1], [0, -1], [1, 0], [-1, 0]
-            ];
-            for (const [dx, dz] of dirs) {
-                const nx = x + dx, nz = z + dz;
-                if (nx < 0 || nx >= this.gridSize || nz < 0 || nz >= this.gridSize) continue;
-                if (visited[nx][nz]) continue;
-                // Check for wall
-                if (this.isBlocked(x, z, nx, nz)) continue;
-                queue.push([nx, nz]);
+            const [row, col] = queue.shift();
+            const posKey = `${row},${col}`;
+            
+            if (visited.has(posKey)) continue;
+            visited.add(posKey);
+            
+            if (row === goalRow) return true;
+            
+            const moves = this.getValidMoves([row, col]);
+            for (const move of moves) {
+                queue.push(move);
             }
         }
+        
         return false;
+    }
+
+    getValidMoves(pos) {
+        const [row, col] = pos;
+        const moves = [];
+        
+        const directions = [
+            [row + 2, col], // up
+            [row - 2, col], // down
+            [row, col + 2], // right
+            [row, col - 2]  // left
+        ];
+        
+        for (const [newRow, newCol] of directions) {
+            if (this.isValidMove(pos, [newRow, newCol])) {
+                moves.push([newRow, newCol]);
+            }
+        }
+        
+        return moves;
+    }
+
+    isValidMove(currentPos, destPos) {
+        if (this.isOutOfBounds(destPos[0], destPos[1])) return false;
+        if (this.isOccupied(destPos[0], destPos[1])) return false;
+        
+        const [row1, col1] = currentPos;
+        const [row2, col2] = destPos;
+        
+        if (row1 === row2) {
+            const wallCol = Math.min(col1, col2) + 1;
+            if (this.board[row1][wallCol].occupiedBy === 'wall') return false;
+        } else {
+            const wallRow = Math.min(row1, row2) + 1;
+            if (this.board[wallRow][col1].occupiedBy === 'wall') return false;
+        }
+        
+        return true;
+    }
+
+    handleTurn(action, data = {}) {
+        const result = {
+            success: false,
+            message: '',
+            stateUpdate: {
+                phaseChanged: false,
+                turnChanged: false,
+                wallCountChanged: false,
+                gameWon: false
+            }
+        };
+
+        switch (action) {
+            case 'move':
+                if (this.phase !== 'move') {
+                    result.message = 'Not in move phase';
+                    return result;
+                }
+                const moveResult = this.movePawn(data.destination);
+                if (moveResult.success) {
+                    this.phase = 'wall';
+                    this.lastAction = 'move';
+                    result.stateUpdate.phaseChanged = true;
+                    result.message = 'Move successful. Wall phase begins.';
+                }
+                return { ...result, ...moveResult };
+
+            case 'wall':
+                if (this.phase !== 'wall') {
+                    result.message = 'Not in wall phase';
+                    return result;
+                }
+                const wallResult = this.placeWall(data.row, data.col);
+                if (wallResult.success) {
+                    this.phase = 'review';
+                    this.lastAction = 'wall';
+                    result.stateUpdate.phaseChanged = true;
+                    result.stateUpdate.wallCountChanged = true;
+                    result.message = 'Wall placed. Review phase begins.';
+                }
+                return { ...result, ...wallResult };
+
+            case 'skip':
+                if (this.phase === 'move') {
+                    this.phase = 'wall';
+                    this.lastAction = 'skip_move';
+                    result.stateUpdate.phaseChanged = true;
+                    result.message = 'Move skipped. Wall phase begins.';
+                } else if (this.phase === 'wall') {
+                    this.phase = 'review';
+                    this.lastAction = 'skip_wall';
+                    result.stateUpdate.phaseChanged = true;
+                    result.message = 'Wall phase skipped. Review phase begins.';
+                }
+                result.success = true;
+                return result;
+
+            case 'end':
+                if (this.phase !== 'review') {
+                    result.message = 'Not in review phase';
+                    return result;
+                }
+                this.turn = this.turn === 'white' ? 'black' : 'white';
+                this.phase = 'move';
+                this.lastAction = 'end_turn';
+                result.stateUpdate.phaseChanged = true;
+                result.stateUpdate.turnChanged = true;
+                result.message = 'Turn ended. Next player\'s move phase begins.';
+                result.success = true;
+                return result;
+
+            case 'reset':
+                if (this.phase !== 'review') {
+                    result.message = 'Can only reset during review phase';
+                    return result;
+                }
+                if (data.originalState) {
+                    this.restoreState(data.originalState);
+                    this.phase = 'move';
+                    this.lastAction = 'reset';
+                    result.stateUpdate.phaseChanged = true;
+                    result.message = 'Turn reset. Move phase begins.';
+                    result.success = true;
+                }
+                return result;
+
+            default:
+                result.message = 'Invalid action';
+                return result;
+        }
     }
 
     getWalls() {
-        return this.walls;
-    }
-
-    // Helper: Find shortest path length for a pawn to its goal
-    shortestPathLength(start, goalZ) {
-        const visited = Array.from({ length: this.gridSize }, () => Array(this.gridSize).fill(false));
-        const queue = [[start.x, start.z, 0]];
-        while (queue.length > 0) {
-            const [x, z, dist] = queue.shift();
-            if (z === goalZ) return dist;
-            if (visited[x][z]) continue;
-            visited[x][z] = true;
-            const dirs = [
-                [0, 1], [0, -1], [1, 0], [-1, 0]
-            ];
-            for (const [dx, dz] of dirs) {
-                const nx = x + dx, nz = z + dz;
-                if (nx < 0 || nx >= this.gridSize || nz < 0 || nz >= this.gridSize) continue;
-                if (visited[nx][nz]) continue;
-                if (this.isBlocked(x, z, nx, nz)) continue;
-                queue.push([nx, nz, dist + 1]);
-            }
-        }
-        return Infinity;
-    }
-
-    // Improved AI: block white if white's path is shorter, otherwise move
-    aiMove() {
-        if (this.turn !== 'black' || this.winner) return false;
-        // Calculate shortest paths
-        const whitePath = this.shortestPathLength(this.whitePos, 0);
-        const blackPath = this.shortestPathLength(this.blackPos, this.gridSize - 1);
-        // Try to place a wall if white is ahead and black has walls
-        if (this.blackWalls > 0 && whitePath < blackPath) {
-            // Try to block white's shortest path
-            const path = this.getShortestPath(this.whitePos, 0);
-            if (path && path.length > 1) {
-                for (let i = 0; i < path.length - 1; i++) {
-                    const [x1, z1] = path[i];
-                    const [x2, z2] = path[i + 1];
-                    // Try horizontal wall between (x1, z1) and (x2, z2)
-                    if (z1 !== z2) {
-                        const wx = Math.min(x1, x2);
-                        const wz = Math.min(z1, z2);
-                        if (this.placeWall(wx, wz, 'h')) {
-                            console.log(`[aiMove] Placed horizontal wall at (${wx},${wz}) to block white`);
-                            return 'wall';
-                        } else {
-                            console.log(`[aiMove] Failed to place horizontal wall at (${wx},${wz})`);
-                        }
-                    }
-                    // Try vertical wall between (x1, z1) and (x2, z2)
-                    if (x1 !== x2) {
-                        const wx = Math.min(x1, x2);
-                        const wz = Math.min(z1, z2);
-                        if (this.placeWall(wx, wz, 'v')) {
-                            console.log(`[aiMove] Placed vertical wall at (${wx},${wz}) to block white`);
-                            return 'wall';
-                        } else {
-                            console.log(`[aiMove] Failed to place vertical wall at (${wx},${wz})`);
-                        }
-                    }
-                }
-            }
-            // Fallback: try near white pawn
-            for (let dx = -1; dx <= 1; dx++) {
-                for (let dz = -1; dz <= 1; dz++) {
-                    const wx = this.whitePos.x + dx;
-                    const wz = this.whitePos.z + dz;
-                    if (this.placeWall(wx, wz, 'h')) {
-                        console.log(`[aiMove] Fallback placed horizontal wall at (${wx},${wz})`);
-                        return 'wall';
-                    }
-                    if (this.placeWall(wx, wz, 'v')) {
-                        console.log(`[aiMove] Fallback placed vertical wall at (${wx},${wz})`);
-                        return 'wall';
+        const walls = [];
+        for (let row = 0; row < 17; row++) {
+            for (let col = 0; col < 17; col++) {
+                if (this.board[row][col].occupiedBy === "wall") {
+                    const orientation = this.determineWallOrientation(row, col);
+                    if (orientation) {
+                        walls.push({ x: col, z: row, orientation });
                     }
                 }
             }
         }
-        // Otherwise, try to move forward
-        let options = [];
-        if (this.isValidMove(this.blackPos, 0, 1)) options.push({ dx: 0, dz: 1 });
-        if (this.isValidMove(this.blackPos, -1, 0)) options.push({ dx: -1, dz: 0 });
-        if (this.isValidMove(this.blackPos, 1, 0)) options.push({ dx: 1, dz: 0 });
-        let move = options.find(opt => opt.dz === 1) || options[0];
-        if (move) {
-            this.movePawn(move.dx, move.dz);
-            return 'move';
-        }
-        return false;
+        return walls;
     }
 
-    // Helper: Get the actual shortest path as a list of [x, z] cells
-    getShortestPath(start, goalZ) {
-        const visited = Array.from({ length: this.gridSize }, () => Array(this.gridSize).fill(false));
-        const prev = Array.from({ length: this.gridSize }, () => Array(this.gridSize).fill(null));
-        const queue = [[start.x, start.z]];
-        visited[start.x][start.z] = true;
-        while (queue.length > 0) {
-            const [x, z] = queue.shift();
-            if (z === goalZ) {
-                // Reconstruct path
-                const path = [];
-                let cx = x, cz = z;
-                while (prev[cx][cz]) {
-                    path.push([cx, cz]);
-                    [cx, cz] = prev[cx][cz];
-                }
-                path.push([start.x, start.z]);
-                path.reverse();
-                return path;
-            }
-            const dirs = [ [0, 1], [0, -1], [1, 0], [-1, 0] ];
-            for (const [dx, dz] of dirs) {
-                const nx = x + dx, nz = z + dz;
-                if (nx < 0 || nx >= this.gridSize || nz < 0 || nz >= this.gridSize) continue;
-                if (visited[nx][nz]) continue;
-                if (this.isBlocked(x, z, nx, nz)) continue;
-                visited[nx][nz] = true;
-                prev[nx][nz] = [x, z];
-                queue.push([nx, nz]);
-            }
-        }
-        return null;
+    restoreState(state) {
+        this.turn = state.turn;
+        this.whitePos = [...state.whitePos];
+        this.blackPos = [...state.blackPos];
+        this.whiteWalls = state.whiteWalls;
+        this.blackWalls = state.blackWalls;
+        this.whiteWon = state.whiteWon;
+        this.blackWon = state.blackWon;
+        this.board = state.board.map(row => row.map(cell => ({ ...cell })));
     }
 } 

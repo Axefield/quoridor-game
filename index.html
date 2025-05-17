@@ -3,87 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quoridor Game</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Quoridor 3D</title>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "/node_modules/three/build/three.module.js",
+            "three/examples/jsm/controls/OrbitControls.js": "/node_modules/three/examples/jsm/controls/OrbitControls.js",
+            "three/examples/jsm/loaders/FBXLoader.js": "/node_modules/three/examples/jsm/loaders/FBXLoader.js"
+        }
+    }
+    </script>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #ececec; 
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        #top-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+        }
+        #game-info {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            color: #222;
+        }
+        #game-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 0;
+            color: #2c3e50;
+        }
+        #game-status {
+            font-size: 0.9rem;
+            color: #34495e;
+        }
+        #game-message {
+            color: #e74c3c;
+            font-size: 0.9rem;
+            min-height: 1.2em;
+        }
+        #wall-counts {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 0.9rem;
+        }
+        .wall-bar {
+            display: inline-block;
+            height: 12px;
+            background: #4a90e2;
+            border-radius: 3px;
+            margin: 0 2px;
+        }
+        .wall-bar.white { background: #fff; border: 1px solid #bbb; }
+        .wall-bar.black { background: #222; }
+        #controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        button {
+            background: rgba(74, 144, 226, 0.9);
+            border: none;
+            color: white;
+            padding: 6px 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        button:hover {
+            background: rgba(53, 122, 184, 0.95);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(74, 144, 226, 0.2);
+        }
+        #game-controls-help {
+            font-size: 0.8rem;
+            color: #666;
+            margin-left: 16px;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Quoridor</h1>
-
-        <div class="scoreboard">
-            <div class="score white-score">
-                <span class="pawn-icon white"></span>
-                <span id="white-score">0</span>
-            </div>
-            <div class="score-label">Score</div>
-            <div class="score black-score">
-                <span class="pawn-icon black"></span>
-                <span id="black-score">0</span>
-            </div>
+    <div id="top-bar">
+        <div id="game-info">
+            <h2 id="game-title">Quoridor 3D</h2>
+            <div id="game-status" role="status" aria-live="polite"></div>
+            <div id="game-message" aria-live="polite"></div>
+            <div id="wall-counts"></div>
         </div>
-
-        <div class="instructions-card">
-            <h3>How to Play Quoridor</h3>
-            <ul>
-                <li><strong>Goal:</strong> Reach the opposite side of the board before your opponent.</li>
-                <li><strong>Move:</strong> Click a space to move your pawn one step (orthogonally).</li>
-                <li><strong>Place Wall:</strong> Click <b>Place Wall</b>, then select two adjacent wall slots and confirm. Walls block paths but cannot fully block a player.</li>
-                <li><strong>Turn:</strong> Players alternate turns. You can move or place a wall on your turn.</li>
-                <li><strong>Win:</strong> First to reach the opposite edge wins the round. Scoreboard tracks wins.</li>
-                <li><strong>Tip:</strong> Use walls strategically to slow your opponent, but don't block yourself!</li>
-            </ul>
+        <div id="controls" role="region" aria-label="Game Controls">
+            <!-- Dynamic buttons will be rendered here by main.js -->
         </div>
-        
-        <div class="game-info">
-            <div class="player-info" id="white-info">
-                <h2>White Player</h2>
-                <p>Walls: <span id="white-walls">10</span></p>
-                <div class="turn-indicator" id="white-turn-indicator">Your Turn</div>
-            </div>
-            <div class="player-info" id="black-info">
-                <h2>Black Player</h2>
-                <p>Walls: <span id="black-walls">10</span></p>
-                <div class="turn-indicator" id="black-turn-indicator">Your Turn</div>
-            </div>
-        </div>
-
-        <div class="phase-banner-card">
-            <div id="phase-banner" class="phase-banner" role="status" aria-live="polite"></div>
-        </div>
-        <div id="board" role="grid" aria-label="Quoridor board"></div>
-
-        <div id="move-controls" style="display:none; margin-top:1rem; text-align:center;" aria-label="Move Controls">
-            <button id="confirm-move" style="background:#27ae60; color:white; margin-right:1rem;">Confirm Move</button>
-            <button id="cancel-move" style="background:#aaa; color:white; margin-right:1rem;">Cancel</button>
-            <button id="skip-move" style="background:#2980b9; color:white;">Skip Move</button>
-        </div>
-        <div id="wall-controls" style="display:none; margin-top:1rem; text-align:center;" aria-label="Wall Controls">
-            <button id="confirm-wall" style="background:#8B4513; color:white; margin-right:1rem;">Confirm Wall</button>
-            <button id="cancel-wall" style="background:#aaa; color:white; margin-right:1rem;">Cancel</button>
-            <button id="skip-wall" style="background:#2980b9; color:white;">Skip Wall</button>
-        </div>
-        <div id="review-controls" style="display:none; margin-top:1rem; text-align:center;" aria-label="Review Controls">
-            <button id="end-turn" style="background:#27ae60; color:white; margin-right:1rem;">End Turn</button>
-            <button id="reset-turn" style="background:#e74c3c; color:white;">Reset Turn</button>
-        </div>
-
-        <div class="controls">
-            <button id="new-game">New Game</button>
-        </div>
-
-        <div id="message" role="alert" aria-live="assertive"></div>
-        <div id="message-live" class="visually-hidden" aria-live="polite"></div>
-
-        <div id="game-end-modal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="game-end-title">
-            <div class="modal-content">
-                <h2 id="game-end-title">Game Over</h2>
-                <p id="game-end-message"></p>
-                <button id="modal-new-game">New Game</button>
-            </div>
-        </div>
+        <div id="game-controls-help">Controls: Click to move/place walls | R: Reset | C: Confirm wall | M: Skip move | W: Skip wall</div>
     </div>
-
-    <script src="quoridor.js"></script>
-    <script src="game.js"></script>
+    <script type="module" src="src/main.js"></script>
 </body>
 </html> 
